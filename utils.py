@@ -81,7 +81,7 @@ def crop_img(img, xy):
 
 def get_files_from_folder(path):
     files = os.listdir(path)
-    return [f for f in files if f != '.DS_Store']
+    return [f for f in files if f != '.DS_Store' and f != '.dircksum']
 
 def gen_dirs(path):
     if not os.path.exists(path):
