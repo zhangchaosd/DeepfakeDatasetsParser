@@ -1,4 +1,4 @@
-# DeepfakeDatasetParser
+# DeepfakeDatasetsParser
 Parse deepfake datasets to faces for detection.
 Can generate label text file.
 
@@ -6,9 +6,7 @@ Can generate label text file.
 ## Installation
 
 ```
-pip install tqdm
-pip install opencv-python
-pip install retinaface-pytorch
+pip install tqdm opencv-python retinaface-pytorch
 ```
 
 ## Usage
