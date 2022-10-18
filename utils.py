@@ -12,9 +12,10 @@ model.eval()
 
 SEED = 1021
 
-# def solve(video_path, label, face_save_path, f, samples, face_scale):
-#     img_paths = video2face_jpgs(video_path, face_save_path, samples, face_scale)
-#     f.writelines([os.path.join('faces', os.path.dirname(video_path), img_path)+' '+str(label)+'\n' for img_path in img_paths])
+def solve(dataset_path,rela_path,video_name, label, face_save_path, f, samples, face_scale):
+    video_path = os.path.join(dataset_path, rela_path, video_name)
+    face_names = video2face_jpgs(video_path, face_save_path, samples, face_scale)
+    f.writelines([os.path.join('faces', rela_path, face_name)+' '+str(label)+'\n' for face_name in face_names])
 
 def video2face_jpgs(video_path, save_path, samples, face_scale):
     if not os.path.exists(save_path):
