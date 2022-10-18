@@ -6,6 +6,7 @@ Can generate label text file.
 ## Installation
 
 ```
+pip install tqdm
 pip install opencv-python
 pip install retinaface-pytorch
 ```
