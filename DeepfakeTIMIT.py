@@ -24,10 +24,10 @@ def main(path, samples, face_scale):
     static_shuffle(subjects)
     train_subjects = subjects[:22]
     test_subjects = subjects[22:]
+    label = '1'
 
     print('Parsing train split...')
     for subject in tqdm(train_subjects):
-        label = '1'
         videos = [f for f in os.listdir(os.path.join(hq_path, subject)) if f.endswith('.avi')]
         assert len(videos) == 10
         for video in videos:
@@ -49,9 +49,8 @@ def main(path, samples, face_scale):
             [*map(cv2.imwrite, [os.path.join(faces_path, 'lower_quality', subject, img_name) for img_name in file_names], faces, [[int(cv2.IMWRITE_JPEG_QUALITY),100]]*len(faces))]
             f_train_lq.writelines([os.path.join('faces', 'lower_quality', subject, img_name)+' '+label+'\n' for img_name in file_names])
 
-    print('Parsing train split...')
+    print('Parsing test split...')
     for subject in tqdm(test_subjects):
-        label = '1'
         videos = [f for f in os.listdir(os.path.join(hq_path, subject)) if f.endswith('.avi')]
         assert len(videos) == 10
         for video in videos:
@@ -77,11 +76,8 @@ def main(path, samples, face_scale):
     f_test_hq.close()
     f_train_lq.close()
     f_test_lq.close()
-    pass
 
 # 1 is fake
 if __name__ == '__main__':
-    main('/Users/zhangchao/datasets/DeepfakeTIMIT', 2, 1.3)
-    exit()
     args = parse()
     main(args.path, args.samples, args.scale)
