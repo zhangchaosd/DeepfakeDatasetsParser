@@ -58,3 +58,4 @@ def main(path, samples, face_scale):
 if __name__ == '__main__':
     args = parse()
     main(args.path, args.samples, args.scale)
+ 
