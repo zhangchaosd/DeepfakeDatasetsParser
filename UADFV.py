@@ -23,8 +23,9 @@ def main(path, samples, face_scale):
     test_txt = os.path.join(faces_path, 'test.txt')
     fake_path = os.path.join(path, 'fake')
     real_path = os.path.join(path, 'real')
-    fake_videos = get_files_from_folder(fake_path)
-    real_videos = get_files_from_folder(real_path)
+    fake_videos = get_files_from_path(fake_path)
+    real_videos = get_files_from_path(real_path)
+    assert len(fake_videos) == 49
     assert len(real_videos) == 49
     train_split, val_split, test_split = get_splits(real_videos)
     f_train = open(train_txt, 'w')

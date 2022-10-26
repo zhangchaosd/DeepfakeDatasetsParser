@@ -79,7 +79,7 @@ def crop_img(img, xy):
     min_y, max_y, min_x, max_x = xy
     return img[min_y:max_y, min_x:max_x, :]
 
-def get_files_from_folder(path):
+def get_files_from_path(path):
     files = os.listdir(path)
     return [f for f in files if f != '.DS_Store' and f != '.dircksum']
 

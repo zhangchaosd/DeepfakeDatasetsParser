@@ -28,9 +28,9 @@ def main(path, samples, face_scale):
     celeb_real_path = os.path.join(path, 'Celeb-real')
     celeb_synthesis_path = os.path.join(path, 'Celeb-synthesis')
     youtube_real_path = os.path.join(path, 'YouTube-real')
-    celeb_real_videos = [os.path.join('Celeb-real', video) for video in get_files_from_folder(celeb_real_path)]
-    celeb_synthesis_videos = [os.path.join('Celeb-synthesis', video) for video in get_files_from_folder(celeb_synthesis_path)]
-    youtube_real_videos = [os.path.join('YouTube-real', video) for video in get_files_from_folder(youtube_real_path)]
+    celeb_real_videos = [os.path.join('Celeb-real', video) for video in get_files_from_path(celeb_real_path)]
+    celeb_synthesis_videos = [os.path.join('Celeb-synthesis', video) for video in get_files_from_path(celeb_synthesis_path)]
+    youtube_real_videos = [os.path.join('YouTube-real', video) for video in get_files_from_path(youtube_real_path)]
 
     celeb_real_videos = [*filter(lambda v: v not in test_videos, celeb_real_videos)]
     celeb_synthesis_videos = [*filter(lambda v: v not in test_videos, celeb_synthesis_videos)]

@@ -38,7 +38,7 @@ def double_videos(videos):
     return res + videos
 
 def get_ff_splits(path):
-    videos = [video for video in get_files_from_folder(path) if int(video[:3])<int(video[4:7])]
+    videos = [video for video in get_files_from_path(path) if int(video[:3])<int(video[4:7])]
     assert len(videos)==500, f'Missing some videos(expect 1000): {path}'
     static_shuffle(videos)
     train_split_m = videos[:360]
@@ -122,7 +122,7 @@ def main(path, samples, face_scale):
             masks_path = raw_path.replace('raw', 'masks')
             gen_dirs(os.path.join(faces_path, masks_path))
 
-        raw_videos = get_files_from_folder(os.path.join(path, raw_path))
+        raw_videos = get_files_from_path(os.path.join(path, raw_path))
         for video in tqdm(raw_videos):
             if video in train_split:
                 f_raw = f_train_raw

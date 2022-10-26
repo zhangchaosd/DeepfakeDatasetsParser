@@ -19,7 +19,7 @@ def main(path, samples, face_scale):
 
     hq_path = os.path.join(path, 'higher_quality')
     lq_path = os.path.join(path, 'lower_quality')
-    subjects = get_files_from_folder(hq_path)
+    subjects = get_files_from_path(hq_path)
     assert len(subjects) == 32
     static_shuffle(subjects)
     train_subjects = subjects[:22]
