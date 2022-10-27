@@ -22,7 +22,7 @@ def parse_video(
     samples,
     face_scale,
 ):
-    face_save_path = os.path.join(dataset_path, 'face', rela_path)
+    face_save_path = os.path.join(dataset_path, 'faces', rela_path)
     video_path = os.path.join(dataset_path, rela_path, video_name)
     face_names = video2face_jpgs(
         video_path, face_save_path, samples, face_scale
