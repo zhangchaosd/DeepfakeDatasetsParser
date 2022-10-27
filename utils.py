@@ -41,7 +41,7 @@ def parse_video(
 def video2face_jpgs(video_path, save_path, samples, face_scale):
     gen_dirs(save_path)
     file_names, frames = video2frames(video_path, samples)
-    faces = [*map(img2face, frames, [face_scale] * len(frames))]
+    faces = [face for face in map(img2face, frames, [face_scale] * len(frames)) if face is not None]
     [
         *map(
             cv2.imwrite,
@@ -78,6 +78,8 @@ def video2frames(video_path, samples):
 
 def img2face(img, face_scale):
     crop_data = get_face_location(img, face_scale)
+    if crop_data is None:
+        return None
     img = crop_img(img, crop_data)
     return img
 
@@ -86,7 +88,8 @@ def get_face_location(img, face_scale):
     h, w, c = img.shape
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     annotation = model.predict_jsons(img, confidence_threshold=0.3)
-    assert len(annotation[0]['bbox']) != 0
+    if len(annotation[0]['bbox']) == 0:
+        return None
     x1, y1, x2, y2 = annotation[0]['bbox']
     x1, y1, x2, y2 = list(
         map(
@@ -139,6 +142,12 @@ def parse():
         default=1.3,
         type=float,
         help='Crop scale rate of face bbox. Default is 1.3',
+    )
+    parser.add_argument(
+        '-subset',
+        default='FF',
+        type=str,
+        help='FF or DFD(DeepFakeDetection), only avaliable for FaceForensics.',
     )
     args = parser.parse_args()
     return args

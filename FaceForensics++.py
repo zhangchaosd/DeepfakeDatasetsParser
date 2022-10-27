@@ -74,7 +74,7 @@ def solve(dataset_path, faces_path, video_path, video_name, f, label, samples, f
     return file_names, crop_datas
 
 
-def main(path, samples, face_scale):
+def main(path, samples, face_scale, subset):
     faces_path = os.path.join(path, 'faces')
     gen_dirs(faces_path)
 
@@ -91,15 +91,11 @@ def main(path, samples, face_scale):
     ### Attention
     train_split, val_split, test_split = get_ff_splits(os.path.join(path,'manipulated_sequences','Deepfakes','raw','videos'))
 
-    # TODO do not use this
-    # datasets = ['original', 'DeepFakeDetection_original','Deepfakes',
-    #     'DeepFakeDetection', 'Face2Face', 'FaceShifter', 'FaceSwap',
-    #     'NeuralTextures']
-
     # FaceShifter don't have masks
-    # datasets = ['original', 'Deepfakes', 'Face2Face', 'FaceShifter', 'FaceSwap', 'NeuralTextures']
-
-    datasets = ['original', 'Deepfakes', 'Face2Face', 'FaceSwap', 'NeuralTextures']
+    if subset == 'FF':
+        datasets = ['original', 'Deepfakes', 'Face2Face', 'FaceSwap', 'NeuralTextures']
+    else:
+        datasets = ['DeepFakeDetection_original', 'DeepFakeDetection']
     for i, dataset in enumerate(datasets):
         print(f'Now parsing {dataset}...')
         label = '0 '
@@ -155,10 +151,9 @@ def main(path, samples, face_scale):
 
 
 '''
-change code 'return' to 'continue' download the full datasets
+change code 'return' to 'continue' download the full datasets in download_ffdf.py
 '''
 
 if __name__ == '__main__':
     args = parse()
-    main(args.path, args.samples, args.scale)
-# -path /Users/zhangchao/datasets/ff -samples 2
+    main(args.path, args.samples, args.scale, args.subset)
