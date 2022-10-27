@@ -2,7 +2,13 @@ import os
 
 from tqdm import tqdm
 
-from utils import *
+from utils import (
+    gen_dirs,
+    get_files_from_path,
+    parse,
+    parse_video,
+    static_shuffle,
+)
 
 
 def get_all_videos(real_videos):
@@ -11,9 +17,15 @@ def get_all_videos(real_videos):
         fake_videos.append(v[:4] + '_fake.mp4')
     return fake_videos + real_videos
 
+
 def get_splits(videos):
     static_shuffle(videos)
-    return get_all_videos(videos[:30]), get_all_videos(videos[30:39]), get_all_videos(videos[39:])  # 30*2, 9*2, 10*2
+    return (
+        get_all_videos(videos[:30]),
+        get_all_videos(videos[30:39]),
+        get_all_videos(videos[39:]),
+    )  # 30*2, 9*2, 10*2
+
 
 def main(path, samples, face_scale):
     faces_path = os.path.join(path, 'faces')
@@ -48,13 +60,14 @@ def main(path, samples, face_scale):
         else:
             k = 'real'
             label = '0'
-        solve(path, k, v, label, os.path.join(faces_path, k), f, samples, face_scale)
+        parse_video(path, k, v, label, f, samples, face_scale)
 
     f_train.close()
     f_val.close()
     f_test.close()
 
-# 0 is real 
+
+# 0 is real
 if __name__ == '__main__':
     args = parse()
     main(args.path, args.samples, args.scale)

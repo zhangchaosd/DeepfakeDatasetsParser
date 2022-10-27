@@ -13,16 +13,16 @@ model.eval()
 SEED = 1021
 
 
-def solve(
+def parse_video(
     dataset_path,
     rela_path,
     video_name,
     label,
-    face_save_path,
     f,
     samples,
     face_scale,
 ):
+    face_save_path = os.path.join(dataset_path, 'face', rela_path)
     video_path = os.path.join(dataset_path, rela_path, video_name)
     face_names = video2face_jpgs(
         video_path, face_save_path, samples, face_scale
@@ -39,19 +39,15 @@ def solve(
 
 
 def video2face_jpgs(video_path, save_path, samples, face_scale):
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    frames = [*video2frames(video_path, samples)]
-    file_names = [fn for fn, _ in frames]
-    faces_with_filename = [
-        (fn, img2face(img, face_scale)) for fn, img in frames
-    ]
+    gen_dirs(save_path)
+    file_names, frames = video2frames(video_path, samples)
+    faces = [*map(img2face, frames, [face_scale] * len(frames))]
     [
         *map(
             cv2.imwrite,
-            [os.path.join(save_path, fn) for fn, _ in faces_with_filename],
-            [face for _, face in faces_with_filename],
-            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(faces_with_filename),
+            [os.path.join(save_path, fn) for fn in file_names],
+            faces,
+            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(faces),
         )
     ]
     return file_names
@@ -76,7 +72,8 @@ def video2frames(video_path, samples):
     cap.release()
     video_name = os.path.basename(video_path)
     file_names = [video_name[:-4] + f'_{i}.jpg' for i, _ in enumerate(order)]
-    return zip(file_names, frames)
+    assert len(file_names) == len(frames)
+    return file_names, frames
 
 
 def img2face(img, face_scale):
