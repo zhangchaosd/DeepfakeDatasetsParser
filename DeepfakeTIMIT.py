@@ -1,8 +1,98 @@
 import os
 
+import cv2
 from tqdm import tqdm
 
-from utils import *
+from utils import (
+    crop_img,
+    gen_dirs,
+    get_face_location,
+    get_files_from_path,
+    parse,
+    static_shuffle,
+    video2frames,
+)
+
+
+def parse_split(
+    train_subjects,
+    faces_path,
+    hq_path,
+    lq_path,
+    f_hq,
+    f_lq,
+    label,
+    samples,
+    face_scale,
+):
+    for subject in tqdm(train_subjects):
+        videos = [
+            f
+            for f in os.listdir(os.path.join(hq_path, subject))
+            if f.endswith('.avi')
+        ]
+        assert len(videos) == 10
+        for video in videos:
+            gen_dirs(os.path.join(faces_path, 'higher_quality', subject))
+            gen_dirs(os.path.join(faces_path, 'lower_quality', subject))
+            # hq
+            file_names, frames = video2frames(
+                os.path.join(hq_path, subject, video), samples
+            )
+            crop_datas = [
+                *map(get_face_location, frames, [face_scale] * len(frames))
+            ]
+            faces = [*map(crop_img, frames, crop_datas)]
+            [
+                *map(
+                    cv2.imwrite,
+                    [
+                        os.path.join(
+                            faces_path, 'higher_quality', subject, img_name
+                        )
+                        for img_name in file_names
+                    ],
+                    faces,
+                    [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(faces),
+                )
+            ]
+            f_hq.writelines(
+                [
+                    os.path.join('faces', 'higher_quality', subject, img_name)
+                    + ' '
+                    + label
+                    + '\n'
+                    for img_name in file_names
+                ]
+            )
+
+            # lq
+            _, frames = video2frames(
+                os.path.join(lq_path, subject, video), samples
+            )
+            faces = [*map(crop_img, frames, crop_datas)]
+            [
+                *map(
+                    cv2.imwrite,
+                    [
+                        os.path.join(
+                            faces_path, 'lower_quality', subject, img_name
+                        )
+                        for img_name in file_names
+                    ],
+                    faces,
+                    [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(faces),
+                )
+            ]
+            f_lq.writelines(
+                [
+                    os.path.join('faces', 'lower_quality', subject, img_name)
+                    + ' '
+                    + label
+                    + '\n'
+                    for img_name in file_names
+                ]
+            )
 
 
 def main(path, samples, face_scale):
@@ -27,55 +117,36 @@ def main(path, samples, face_scale):
     label = '1'
 
     print('Parsing train split...')
-    for subject in tqdm(train_subjects):
-        videos = [f for f in os.listdir(os.path.join(hq_path, subject)) if f.endswith('.avi')]
-        assert len(videos) == 10
-        for video in videos:
-            gen_dirs(os.path.join(faces_path,'higher_quality',subject))
-            gen_dirs(os.path.join(faces_path,'lower_quality',subject))
-            # hq
-            frames_with_file_names = [*video2frames(os.path.join(hq_path, subject, video), samples)]
-            frames = [frame for _, frame in frames_with_file_names]
-            file_names = [file_name for file_name, _ in frames_with_file_names]
-            crop_datas = [*map(get_face_location, frames, [face_scale]*len(frames))]
-            faces = [*map(crop_img, frames, crop_datas)]
-            [*map(cv2.imwrite, [os.path.join(faces_path, 'higher_quality', subject, img_name) for img_name in file_names], faces, [[int(cv2.IMWRITE_JPEG_QUALITY),100]]*len(faces))]
-            f_train_hq.writelines([os.path.join('faces', 'higher_quality', subject, img_name)+' '+label+'\n' for img_name in file_names])
-
-            # lq
-            frames_with_file_names = [*video2frames(os.path.join(lq_path, subject, video), samples)]
-            frames = [frame for _, frame in frames_with_file_names]
-            faces = [*map(crop_img, frames, crop_datas)]
-            [*map(cv2.imwrite, [os.path.join(faces_path, 'lower_quality', subject, img_name) for img_name in file_names], faces, [[int(cv2.IMWRITE_JPEG_QUALITY),100]]*len(faces))]
-            f_train_lq.writelines([os.path.join('faces', 'lower_quality', subject, img_name)+' '+label+'\n' for img_name in file_names])
+    parse_split(
+        train_subjects,
+        faces_path,
+        hq_path,
+        lq_path,
+        f_train_hq,
+        f_train_lq,
+        label,
+        samples,
+        face_scale,
+    )
 
     print('Parsing test split...')
-    for subject in tqdm(test_subjects):
-        videos = [f for f in os.listdir(os.path.join(hq_path, subject)) if f.endswith('.avi')]
-        assert len(videos) == 10
-        for video in videos:
-            gen_dirs(os.path.join(faces_path,'higher_quality',subject))
-            gen_dirs(os.path.join(faces_path,'lower_quality',subject))
-            # hq
-            frames_with_file_names = [*video2frames(os.path.join(hq_path, subject, video), samples)]
-            frames = [frame for _, frame in frames_with_file_names]
-            file_names = [file_name for file_name, _ in frames_with_file_names]
-            crop_datas = [*map(get_face_location, frames, [face_scale]*len(frames))]
-            faces = [*map(crop_img, frames, crop_datas)]
-            [*map(cv2.imwrite, [os.path.join(faces_path, 'higher_quality', subject, img_name) for img_name in file_names], faces, [[int(cv2.IMWRITE_JPEG_QUALITY),100]]*len(faces))]
-            f_test_hq.writelines([os.path.join('faces', 'higher_quality', subject, img_name)+' '+label+'\n' for img_name in file_names])
-
-            # lq
-            frames_with_file_names = [*video2frames(os.path.join(lq_path, subject, video), samples)]
-            frames = [frame for _, frame in frames_with_file_names]
-            faces = [*map(crop_img, frames, crop_datas)]
-            [*map(cv2.imwrite, [os.path.join(faces_path, 'lower_quality', subject, img_name) for img_name in file_names], faces, [[int(cv2.IMWRITE_JPEG_QUALITY),100]]*len(faces))]
-            f_test_lq.writelines([os.path.join('faces', 'lower_quality', subject, img_name)+' '+label+'\n' for img_name in file_names])
+    parse_split(
+        test_subjects,
+        faces_path,
+        hq_path,
+        lq_path,
+        f_test_hq,
+        f_test_lq,
+        label,
+        samples,
+        face_scale,
+    )
 
     f_train_hq.close()
     f_test_hq.close()
     f_train_lq.close()
     f_test_lq.close()
+
 
 # 1 is fake
 if __name__ == '__main__':
