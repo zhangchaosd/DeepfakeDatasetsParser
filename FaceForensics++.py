@@ -273,7 +273,7 @@ def main(path, samples, face_scale, subset):
 
 
 '''
-change code 'return' to 'continue' download the full datasets in download_ffdf.py
+change code 'return' to 'continue' to download the full datasets in download_ffdf.py
 '''
 
 if __name__ == '__main__':
