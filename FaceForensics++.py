@@ -130,7 +130,7 @@ def solve(
                 for img_name in file_names
             ]
         )
-    return file_names, crop_datas
+    return new_file_names, crop_datas
 
 
 def main(path, samples, face_scale, subset):
