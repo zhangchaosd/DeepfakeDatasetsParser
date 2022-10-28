@@ -86,66 +86,141 @@ def solve(
     faces_path,
     video_path,
     video_name,
-    f,
+    raw_f,
+    c23_f,
+    c40_f,
     label,
     samples,
     face_scale,
-    file_names=None,
-    crop_datas=None,
+    has_masks,
 ):
-    new_file_names, frames = video2frames(
+    file_names, raw_frames = video2frames(
         os.path.join(dataset_path, video_path, video_name), samples
     )
-    if file_names is None:
-        file_names = new_file_names
-    file_names = [
-        os.path.join(faces_path, video_path, file_name)
-        for file_name in file_names
+    _, c23_frames = video2frames(
+        os.path.join(dataset_path, video_path.replace('raw', 'c23'), video_name), samples
+    )
+    _, c40_frames = video2frames(
+        os.path.join(dataset_path, video_path.replace('raw', 'c40'), video_name), samples
+    )
+    if has_masks:
+        _, masks_frames = video2frames(
+            os.path.join(dataset_path, video_path.replace('raw', 'masks'), video_name), samples
+        )
+    
+    crop_datas = [
+        *map(get_face_location, raw_frames, [face_scale] * len(raw_frames))
     ]
-    if crop_datas is None:
-        crop_datas = [
-            *map(get_face_location, frames, [face_scale] * len(frames))
-        ]
     file_names = [
         file_name
         for i, file_name in enumerate(file_names)
         if crop_datas[i] is not None
     ]
-    frames = [
-        frame for i, frame in enumerate(frames) if crop_datas[i] is not None
+    raw_file_names = [
+        os.path.join(faces_path, video_path, file_name)
+        for file_name in file_names
     ]
-    new_file_names = [
-        new_file_name
-        for i, new_file_name in enumerate(new_file_names)
-        if crop_datas[i] is not None
+    c23_file_names = [
+        os.path.join(faces_path, video_path.replace('raw', 'c23'), file_name)
+        for file_name in file_names
     ]
+    c40_file_names = [
+        os.path.join(faces_path, video_path.replace('raw', 'c40'), file_name)
+        for file_name in file_names
+    ]
+    if has_masks:
+        masks_file_names = [
+            os.path.join(faces_path, video_path.replace('raw', 'masks'), file_name)
+            for file_name in file_names
+        ]
+    raw_frames = [
+        frame for i, frame in enumerate(raw_frames) if crop_datas[i] is not None
+    ]
+    c23_frames = [
+        frame for i, frame in enumerate(c23_frames) if crop_datas[i] is not None
+    ]
+    c40_frames = [
+        frame for i, frame in enumerate(c40_frames) if crop_datas[i] is not None
+    ]
+    if has_masks:
+        masks_frames = [
+            frame for i, frame in enumerate(masks_frames) if crop_datas[i] is not None
+        ]
     crop_datas = [
         crop_data for crop_data in crop_datas if crop_data is not None
     ]
-    assert len(frames) == len(file_names), f'{len(frames) != {len(file_names)}}'
-    assert len(crop_datas) == len(
-        file_names
-    ), f'{len(crop_datas) != {len(file_names)}}'
-    faces = [*map(crop_img, frames, crop_datas)]
+    assert len(raw_frames) == len(c23_frames)
+    assert len(raw_frames) == len(c40_frames)
+    if has_masks:
+        assert len(raw_frames) == len(masks_frames)
+    assert len(raw_frames) == len(file_names)
+    assert len(raw_frames) == len(crop_datas)
+    raw_faces = [*map(crop_img, raw_frames, crop_datas)]
     [
         *map(
             cv2.imwrite,
-            file_names,
-            faces,
-            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(faces),
+            raw_file_names,
+            raw_faces,
+            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(raw_faces),
         )
     ]
-    if f is not None:
-        f.writelines(
-            [
-                os.path.join('faces', video_path, os.path.basename(img_name))
-                + ' '
-                + label
-                + '\n'
-                for img_name in file_names
-            ]
+    raw_f.writelines(
+        [
+            os.path.join('faces', video_path, os.path.basename(img_name))
+            + ' '
+            + label
+            + '\n'
+            for img_name in file_names
+        ]
+    )
+
+    c23_faces = [*map(crop_img, c23_frames, crop_datas)]
+    [
+        *map(
+            cv2.imwrite,
+            c23_file_names,
+            c23_faces,
+            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(c23_faces),
         )
-    return new_file_names, crop_datas
+    ]
+    c23_f.writelines(
+        [
+            os.path.join('faces', video_path.replace('raw', 'c23'), os.path.basename(img_name))
+            + ' '
+            + label
+            + '\n'
+            for img_name in file_names
+        ]
+    )
+
+    c40_faces = [*map(crop_img, c40_frames, crop_datas)]
+    [
+        *map(
+            cv2.imwrite,
+            c40_file_names,
+            c40_faces,
+            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(c40_faces),
+        )
+    ]
+    c40_f.writelines(
+        [
+            os.path.join('faces', video_path.replace('raw', 'c40'), os.path.basename(img_name))
+            + ' '
+            + label
+            + '\n'
+            for img_name in file_names
+        ]
+    )
+    if has_masks:
+        masks_faces = [*map(crop_img, masks_frames, crop_datas)]
+        [
+            *map(
+                cv2.imwrite,
+                masks_file_names,
+                masks_faces,
+                [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(masks_faces),
+            )
+        ]
 
 
 def main(path, samples, face_scale, subset):
@@ -235,53 +310,19 @@ def main(path, samples, face_scale, subset):
                 f_c23 = f_test_c23
                 f_c40 = f_test_c40
 
-            file_names, crop_datas = solve(
+            solve(
                 path,
                 faces_path,
                 raw_path,
                 video,
                 f_raw,
-                label,
-                samples,
-                face_scale,
-            )
-            solve(
-                path,
-                faces_path,
-                c23_path,
-                video,
                 f_c23,
-                label,
-                samples,
-                face_scale,
-                file_names,
-                crop_datas,
-            )
-            solve(
-                path,
-                faces_path,
-                c40_path,
-                video,
                 f_c40,
                 label,
                 samples,
                 face_scale,
-                file_names,
-                crop_datas,
+                'original' not in dataset,
             )
-            if 'original' not in dataset:
-                solve(
-                    path,
-                    faces_path,
-                    masks_path,
-                    video,
-                    None,
-                    None,
-                    samples,
-                    face_scale,
-                    file_names,
-                    crop_datas,
-                )
 
     f_train_raw.close()
     f_val_raw.close()
