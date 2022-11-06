@@ -157,7 +157,7 @@ def parse():
         '-subset',
         default='FF',
         type=str,
-        help='FF or DFD(DeepFakeDetection), only avaliable for FaceForensics.',
+        help='FF or DFD(DeepFakeDetection), only avaliable for FaceForensics++.',
     )
     args = parser.parse_args()
     return args
