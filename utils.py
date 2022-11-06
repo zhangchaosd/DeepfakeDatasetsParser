@@ -118,6 +118,14 @@ def get_files_from_path(path):
     files = os.listdir(path)
     return [f for f in files if f != '.DS_Store' and f != '.dircksum']
 
+def read_txt(path):
+    assert path.endswith('.txt')
+    lines = []
+    with open(path) as f:
+        for line in f.readlines():
+            lines.append(line.strip())
+    return lines
+
 
 def gen_dirs(path):
     if not os.path.exists(path):
