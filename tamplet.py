@@ -6,7 +6,6 @@ def main(path, samples, face_scale):
     faces_path = os.path.join(path, 'faces')
     gen_dirs(faces_path)
 
-
     pass
 
 
