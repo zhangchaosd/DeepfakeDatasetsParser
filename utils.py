@@ -30,7 +30,7 @@ def parse_video(
     f.writelines(
         [
             os.path.join('faces', rela_path, face_name)
-            + ' '
+            + '\t'
             + str(label)
             + '\n'
             for face_name in face_names
