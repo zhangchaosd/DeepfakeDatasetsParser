@@ -71,7 +71,7 @@ def main(path, samples, face_scale):
                         parse_video(
                             path,
                             os.path.dirname(source_video),
-                            os.path.basename(video),
+                            os.path.basename(source_video),
                             '0',
                             f,
                             samples,
