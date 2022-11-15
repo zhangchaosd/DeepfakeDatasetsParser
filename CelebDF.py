@@ -58,8 +58,8 @@ def main(path, samples, face_scale):
         *filter(lambda v: v not in test_videos, youtube_real_videos)
     ]
 
-    all_videos = [('1', v) for v in celeb_real_videos + youtube_real_videos] + [
-        ('0', v) for v in celeb_synthesis_videos
+    all_videos = [('0', v) for v in celeb_real_videos + youtube_real_videos] + [
+        ('1', v) for v in celeb_synthesis_videos
     ]
 
     static_shuffle(all_videos)
@@ -94,7 +94,7 @@ def main(path, samples, face_scale):
             )
 
 
-# real is 1
+# real is 0
 if __name__ == '__main__':
     args = parse()
     main(args.path, args.samples, args.scale)
