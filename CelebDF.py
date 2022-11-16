@@ -63,7 +63,7 @@ def main(path, samples, face_scale):
     ]
 
     static_shuffle(all_videos)
-    val_size = 500
+    val_size = 0  #
     train_split = all_videos[: len(all_videos) - val_size]
     with open(train_info_txt, 'w') as f:
         print('Generating train split...')

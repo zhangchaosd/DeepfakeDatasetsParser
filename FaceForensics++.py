@@ -75,6 +75,11 @@ def get_DFD_splits(original_path, manipulated_path):
     return train_split, val_split, test_split
 
 
+def bina_mask(mask):
+    mask[mask>0]=255
+    return mask
+
+
 def solve(
     dataset_path,
     faces_path,
@@ -207,6 +212,7 @@ def solve(
     )
     if has_masks:
         masks_faces = [*map(crop_img, masks_frames, crop_datas)]
+        masks_faces = [*map(bina_mask, masks_faces)]
         [
             *map(
                 cv2.imwrite,
@@ -241,9 +247,9 @@ def main(path, samples, face_scale, subset):
             'NeuralTextures',
         ]
         train_split, val_split, test_split = get_ff_splits(
-            os.path.join(
-                path, 'manipulated_sequences', 'Deepfakes', 'raw', 'videos'
-            )
+            # os.path.join(
+            #     path, 'manipulated_sequences', 'Deepfakes', 'raw', 'videos'
+            # )
         )
     else:
         datasets = ['DeepFakeDetection_original', 'DeepFakeDetection']
@@ -335,6 +341,7 @@ change code 'return' to 'continue' to download the full datasets in download_ffd
 
 if __name__ == '__main__':
     main('/share/home/zhangchao/datasets_io03_ssd/ff++', 8, 1.3, 'FF')
+    main('/share/home/zhangchao/datasets_io03_ssd/ff++', 8, 1.3, 'DFD')
     exit()
     args = parse()
     main(args.path, args.samples, args.scale, args.subset)
