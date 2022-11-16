@@ -168,6 +168,7 @@ def solve(
             os.path.join('faces', video_path, os.path.basename(img_name))
             + ' '
             + label
+            + '' if not has_masks else ' '+os.path.join('faces', video_path.replace('raw', 'masks'), os.path.basename(img_name))
             + '\n'
             for img_name in file_names
         ]
@@ -187,6 +188,7 @@ def solve(
             os.path.join('faces', video_path.replace('raw', 'c23'), os.path.basename(img_name))
             + ' '
             + label
+            + '' if not has_masks else ' '+os.path.join('faces', video_path.replace('raw', 'masks'), os.path.basename(img_name))
             + '\n'
             for img_name in file_names
         ]
@@ -206,6 +208,7 @@ def solve(
             os.path.join('faces', video_path.replace('raw', 'c40'), os.path.basename(img_name))
             + ' '
             + label
+            + '' if not has_masks else ' '+os.path.join('faces', video_path.replace('raw', 'masks'), os.path.basename(img_name))
             + '\n'
             for img_name in file_names
         ]
