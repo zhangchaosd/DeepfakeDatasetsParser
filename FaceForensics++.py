@@ -1,4 +1,5 @@
 import os
+import json
 
 import cv2
 from tqdm import tqdm
@@ -28,31 +29,24 @@ def double_videos(videos):
     return res + videos
 
 
-def get_ff_splits(path):
-    videos = [
-        video
-        for video in get_files_from_path(path)
-        if int(video[:3]) < int(video[4:7])
-    ]
-    assert len(videos) == 500, f'Missing some videos(expect 1000): {path}'
-    static_shuffle(videos)
-    train_split_m = videos[:360]
-    val_split_m = videos[360:430]
-    test_split_m = videos[430:]
+def json2list(js):
+    with open(js,'r') as f:
+        ls = json.load(f)
+    res=[]
+    for p in ls:
+        res.append(p[0]+'_'+p[1]+'.mp4')
+        res.append(p[1]+'_'+p[0]+'.mp4')
+        res.append(p[1]+'.mp4')
+        res.append(p[0]+'.mp4')
+    return res
 
-    train_split_o = get_source_videos(train_split_m)
-    val_split_o = get_source_videos(val_split_m)
-    test_split_o = get_source_videos(test_split_m)
 
-    train_split_m = double_videos(train_split_m)
-    val_split_m = double_videos(val_split_m)
-    test_split_m = double_videos(test_split_m)
-
-    return (
-        train_split_m + train_split_o,
-        val_split_m + val_split_o,
-        test_split_m + test_split_o,
-    )
+# https://github.com/ondyari/FaceForensics/tree/master/dataset/splits
+def get_ff_splits():
+    train_js = './ff++split/train.json'
+    val_js = './ff++split/val.json'
+    test_js = './ff++split/test.json'
+    return json2list(train_js),json2list(val_js),json2list(test_js)
 
 
 def get_DFD_splits(original_path, manipulated_path):
@@ -340,5 +334,7 @@ change code 'return' to 'continue' to download the full datasets in download_ffd
 '''
 
 if __name__ == '__main__':
+    main('/share/home/zhangchao/datasets_io03_ssd/ff++', 8, 1.3, 'FF')
+    exit()
     args = parse()
     main(args.path, args.samples, args.scale, args.subset)
