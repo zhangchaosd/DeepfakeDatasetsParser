@@ -15,7 +15,7 @@ def parse(path, faces_path, rela_path, infos, face_scale):
             gen_dirs(folder)
             # print(os.path.join(faces_path,rela_path,pa),face.shape)
             cv2.imwrite(os.path.join(faces_path,rela_path,pa),face,[int(cv2.IMWRITE_JPEG_QUALITY), 100])
-            txt.append(os.path.join(rela_path,pa)+' '+bin_label+'\n')
+            txt.append(os.path.join(rela_path,pa)+'\t'+bin_label+'\n')
             # break
     return txt
 
@@ -28,7 +28,7 @@ def main(path, face_scale):
     subset = sys.argv[1]
     faces_path = os.path.join(path, 'faces')
     gen_dirs(faces_path)
-    with open(os.path.join(faces_path,'train.txt'),'w') as f:
+    with open(os.path.join(faces_path,str(subset)+'train.txt'),'w') as f:
         train_info = os.path.join(path,'Training','image_list.txt')
         infos = read_txt(train_info)
         infos = [info for info in infos if getsubset(info,14)==subset]
@@ -37,7 +37,7 @@ def main(path, face_scale):
         f.writelines(txt)
     print('train done')
 
-    with open(os.path.join(faces_path,'val.txt'),'w') as f:
+    with open(os.path.join(faces_path,str(subset)+'val.txt'),'w') as f:
         train_info = os.path.join(path,'Validation','image_list.txt')
         infos = read_txt(train_info)
         infos = [info for info in infos if getsubset(info,20)==subset]

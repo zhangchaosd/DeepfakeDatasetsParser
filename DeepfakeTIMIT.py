@@ -87,7 +87,7 @@ def parse_split(
             f_lq.writelines(
                 [
                     os.path.join('faces', 'lower_quality', subject, img_name)
-                    + ' '
+                    + '\t'
                     + label
                     + '\n'
                     for img_name in file_names
