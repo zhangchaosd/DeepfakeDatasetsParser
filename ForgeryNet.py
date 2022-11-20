@@ -1,7 +1,7 @@
 import sys
 import os
 from tqdm import tqdm
-from utils import img2face,gen_dirs,read_txt
+# from utils import img2face,gen_dirs,read_txt
 import cv2
 
 def parse(path, faces_path, rela_path, infos, face_scale):
@@ -47,8 +47,41 @@ def main(path, face_scale):
     print('val donne')
 
 
+
+def read_txt(path):
+    assert path.endswith('.txt')
+    lines = []
+    with open(path) as f:
+        for line in f.readlines():
+            lines.append(line.strip())
+    return lines
+
+# Call this func to merge txts in the end
+def merge_txt(path):
+    faces_path = os.path.join(path,'faces')
+    files = os.listdir(faces_path)
+    train_txts = [f for f in files if f.endswith('train.txt')]
+    val_txts = [f for f in files if f.endswith('val.txt')]
+    assert len(train_txts) == 19 and len(val_txts)==19
+    train_info = []
+    for txt in train_txts:
+        train_info = train_info + read_txt(os.path.join(faces_path, txt))
+    val_info = []
+    for txt in val_txts:
+        val_info = val_info + read_txt(os.path.join(faces_path, txt))
+    train_info = [l+'\n' for l in train_info]
+    val_info = [l+'\n' for l in val_info]
+    with open(os.path.join(faces_path,'train.txt'),'w') as f:
+        f.writelines(train_info)
+    with open(os.path.join(faces_path,'val.txt'),'w') as f:
+        f.writelines(val_info)
+
+
+
 if __name__ == '__main__':
-    main('/share/home/zhangchao/datasets_io03_ssd/ForgeryNet', 1.3)
+    path = '/share/home/zhangchao/datasets_io03_ssd/ForgeryNet'
+    merge_txt(path)
+    # main('/share/home/zhangchao/datasets_io03_ssd/ForgeryNet', 1.3)
     exit()
     args = parse()
     main(args.path, args.samples, args.scale)

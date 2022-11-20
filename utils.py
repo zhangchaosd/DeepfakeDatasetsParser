@@ -5,8 +5,8 @@ import random
 import cv2
 from retinaface.pre_trained_models import get_model
 
-# device = 'cuda:0'
-device = 'cpu'
+device = 'cuda:0'
+# device = 'cpu'
 model = get_model("resnet50_2020-07-20", max_size=1024, device=device)
 model.eval()
 

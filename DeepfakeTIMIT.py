@@ -59,7 +59,7 @@ def parse_split(
             f_hq.writelines(
                 [
                     os.path.join('faces', 'higher_quality', subject, img_name)
-                    + ' '
+                    + '\t'
                     + label
                     + '\n'
                     for img_name in file_names
@@ -150,5 +150,6 @@ def main(path, samples, face_scale):
 
 # 1 is fake
 if __name__ == '__main__':
-    args = parse()
-    main(args.path, args.samples, args.scale)
+    # args = parse()
+    main('/share/home/zhangchao/datasets_io03_ssd/DeepfakeTIMIT', 100, 1.3)
+    # main(args.path, args.samples, args.scale)

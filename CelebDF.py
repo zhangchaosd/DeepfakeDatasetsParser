@@ -96,5 +96,10 @@ def main(path, samples, face_scale):
 
 # real is 0
 if __name__ == '__main__':
-    args = parse()
-    main(args.path, args.samples, args.scale)
+    # args = parse()
+    # main(args.path, args.samples, args.scale)
+    print('v1')
+    main('/share/home/zhangchao/datasets_io03_ssd/Celeb-DF', 100, 1.3)
+    print('v2')
+    main('/share/home/zhangchao/datasets_io03_ssd/Celeb-DF-v2', 100, 1.3)
+    print('done')

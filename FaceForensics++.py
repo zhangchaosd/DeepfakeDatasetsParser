@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 
@@ -51,12 +52,18 @@ def get_ff_splits():
 
 def get_DFD_splits(original_path, manipulated_path):
     train_list = [
-        '01', '02', '03', '04', '06', '07',
-        '09', '11', '12', '13', '14', '15',
-        '18', '20', '21', '25', '26', '27',
+        ['01', '02', '03'],
+        ['04', '06', '07'],
+        ['09', '11', '12', '13'],
+        ['14', '15', '18', '20'],
+        ['21', '25', '26', '27'],
     ]
     val_list = ['05', '08', '16', '17', '28']
     test_list = ['10', '19', '22', '23', '24']
+    idx = int(sys.argv[1])
+    train_list = train_list[idx]
+    val_list = val_list[idx-1:idx]
+    test_list = test_list[idx-1:idx]
     videos = get_files_from_path(original_path) + get_files_from_path(
         manipulated_path
     )
@@ -230,15 +237,8 @@ def main(path, samples, face_scale, subset):
     faces_path = os.path.join(path, 'faces')
     gen_dirs(faces_path)
 
-    f_train_raw = open(os.path.join(faces_path, subset + '_train_raw.txt'), 'w')
-    f_val_raw = open(os.path.join(faces_path, subset + '_val_raw.txt'), 'w')
-    f_test_raw = open(os.path.join(faces_path, subset + '_test_raw.txt'), 'w')
-    f_train_c23 = open(os.path.join(faces_path, subset + '_train_c23.txt'), 'w')
-    f_val_c23 = open(os.path.join(faces_path, subset + '_val_c23.txt'), 'w')
-    f_test_c23 = open(os.path.join(faces_path, subset + '_test_c23.txt'), 'w')
-    f_train_c40 = open(os.path.join(faces_path, subset + '_train_c40.txt'), 'w')
-    f_val_c40 = open(os.path.join(faces_path, subset + '_val_c40.txt'), 'w')
-    f_test_c40 = open(os.path.join(faces_path, subset + '_test_c40.txt'), 'w')
+
+
 
     # FaceShifter don't have masks
     if subset == 'FF':
@@ -249,13 +249,21 @@ def main(path, samples, face_scale, subset):
             'FaceSwap',
             'NeuralTextures',
         ]
+        idx = sys.argv[1]
+        assert idx in datasets
+        datasets = [idx]
         train_split, val_split, test_split = get_ff_splits(
             # os.path.join(
             #     path, 'manipulated_sequences', 'Deepfakes', 'raw', 'videos'
             # )
         )
     else:
-        datasets = ['DeepFakeDetection_original', 'DeepFakeDetection']
+        idx = int(sys.argv[1])
+        assert idx>0 and idx<6
+        datasets = [
+            'DeepFakeDetection_original',  # 363
+            'DeepFakeDetection',  # 3068
+        ]
         train_split, val_split, test_split = get_DFD_splits(
             os.path.join(
                 path,
@@ -274,6 +282,19 @@ def main(path, samples, face_scale, subset):
         )
     for i, dataset in enumerate(datasets):
         print(f'Now parsing {dataset}...')
+        dataset_i = dataset
+        if dataset_i == 'DeepFakeDetection':
+            print(f'Now parsing {sys.argv[1]}...')
+            dataset_i = dataset_i + '_' + sys.argv[1] +'_'
+        f_train_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_raw.txt'), 'w')
+        f_val_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_raw.txt'), 'w')
+        f_test_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_raw.txt'), 'w')
+        f_train_c23 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_c23.txt'), 'w')
+        f_val_c23 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_c23.txt'), 'w')
+        f_test_c23 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_c23.txt'), 'w')
+        f_train_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_c40.txt'), 'w')
+        f_val_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_c40.txt'), 'w')
+        f_test_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_c40.txt'), 'w')
         label = '0 '
         if 'original' == dataset:
             raw_path = os.path.join(
@@ -326,25 +347,38 @@ def main(path, samples, face_scale, subset):
                 face_scale,
                 'original' not in dataset,
             )
-
-    f_train_raw.close()
-    f_val_raw.close()
-    f_test_raw.close()
-    f_train_c23.close()
-    f_val_c23.close()
-    f_test_c23.close()
-    f_train_c40.close()
-    f_val_c40.close()
-    f_test_c40.close()
+        f_train_raw.close()
+        f_val_raw.close()
+        f_test_raw.close()
+        f_train_c23.close()
+        f_val_c23.close()
+        f_test_c23.close()
+        f_train_c40.close()
+        f_val_c40.close()
+        f_test_c40.close()
 
 
 '''
 change code 'return' to 'continue' to download the full datasets in download_ffdf.py
 '''
-
+'''
+usage:
+  FF:
+    python FaceForensics++.py original
+    python FaceForensics++.py Deepfakes
+    python FaceForensics++.py Face2Face
+    python FaceForensics++.py FaceSwap
+    python FaceForensics++.py NeuralTextures
+  DFD:
+    python FaceForensics++.py 1
+    python FaceForensics++.py 2
+    python FaceForensics++.py 3
+    python FaceForensics++.py 4
+    python FaceForensics++.py 5
+'''
 if __name__ == '__main__':
-    main('/share/home/zhangchao/datasets_io03_ssd/ff++', 8, 1.3, 'FF')
-    main('/share/home/zhangchao/datasets_io03_ssd/ff++', 8, 1.3, 'DFD')
+    # main('/share/home/zhangchao/datasets_io03_ssd/ff++', 50, 1.3, 'FF')
+    main('/share/home/zhangchao/datasets_io03_ssd/ff++', 50, 1.3, 'DFD')
     exit()
     args = parse()
     main(args.path, args.samples, args.scale, args.subset)

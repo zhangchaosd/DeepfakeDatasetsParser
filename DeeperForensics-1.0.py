@@ -82,5 +82,6 @@ def main(path, samples, face_scale):
 
 # 1 is fake
 if __name__ == '__main__':
-    args = parse()
-    main(args.path, args.samples, args.scale)
+    # args = parse()
+    # main(args.path, args.samples, args.scale)
+    main('/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0', 100, 1.3)
