@@ -35,7 +35,8 @@ def parse(path, faces_path, rela_path, infos, face_scale):
             gen_dirs(mask_folder)
             line = line[:-1]+'\t'+os.path.join('face',rela_path.replace('image','spatial_localize'),pa.replace('train_release','train_mask_release'))+'\n'
             cv2.imwrite(os.path.join(mask_folder,os.path.basename(pa)),mask,[int(cv2.IMWRITE_JPEG_QUALITY), 100])
-        txt.append(os.path.join(rela_path,pa)+'\t'+bin_label+'\n')
+        # txt.append(os.path.join(rela_path,pa)+'\t'+bin_label+'\n')
+        txt.append(line)
     return txt
 
 def getsubset(na,i):
@@ -100,10 +101,9 @@ def merge_txt(path):
         f.writelines(all_info)
 
 
-
 if __name__ == '__main__':
-    path = '/share/home/zhangchao/datasets_io03_ssd/ForgeryNet'
-    merge_txt(path)
+    # path = '/share/home/zhangchao/datasets_io03_ssd/ForgeryNet'
+    # merge_txt(path)
     # main(path, 1.3)
     exit()
     args = parse()
