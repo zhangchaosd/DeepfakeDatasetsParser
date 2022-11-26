@@ -17,7 +17,8 @@ ms = [
     'end_to_end_random_level',
     'reenact_postprocess',
 ]
-modes = ['train', 'val', 'test']
+modes = ['test']
+# modes = ['train', 'val', 'test']
 
 
 def parse_source_videos(source_videos):
@@ -79,9 +80,22 @@ def main(path, samples, face_scale):
                         )
                     del source_videos[name]
 
+def merge_txt(path):
+    faces_path = os.path.join(path,'faces')
+    all_info = []
+    with open(os.path.join(faces_path,'train.txt'),'r') as f:
+        all_info = f.readlines()
+    with open(os.path.join(faces_path,'val.txt'),'r') as f:
+        all_info = all_info + f.readlines()
+    with open(os.path.join(faces_path,'test.txt'),'r') as f:
+        all_info = all_info + f.readlines()
+    print('all: ', len(all_info))
+    with open(os.path.join(faces_path,'all.txt'),'w') as f:
+        f.writelines(all_info)
 
 # 1 is fake
 if __name__ == '__main__':
     # args = parse()
     # main(args.path, args.samples, args.scale)
-    main('/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0', 100, 1.3)
+    # main('/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0', 10, 1.3)
+    merge_txt('/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0')

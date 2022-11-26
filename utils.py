@@ -27,6 +27,8 @@ def parse_video(
     face_names = video2face_jpgs(
         video_path, face_save_path, samples, face_scale
     )
+    if face_names == None:
+        return
     f.writelines(
         [
             os.path.join('faces', rela_path, face_name)
@@ -40,7 +42,9 @@ def parse_video(
 
 def video2face_jpgs(video_path, save_path, samples, face_scale):
     gen_dirs(save_path)
-    file_names, frames = video2frames(video_path, samples)
+    _, file_names, frames = video2frames(video_path, samples)
+    if frames ==None:
+        return None
     faces = [*map(img2face, frames, [face_scale] * len(frames))]
     file_names = [file_name for i, file_name in enumerate(file_names) if faces[i] is not None]
     faces = [face for face in faces if face is not None]
@@ -55,27 +59,35 @@ def video2face_jpgs(video_path, save_path, samples, face_scale):
     return file_names
 
 
-def video2frames(video_path, samples):
+def video2frames(video_path, samples, order = None):
     if not os.path.exists(video_path):
-        raise Exception(f'Video file not exists! {video_path}')
+        # raise Exception(f'Video file not exists! {video_path}')
+        print(f'Video file not exists! {video_path}')
+        return None, None, None
     frames = []
     cap = cv2.VideoCapture(video_path)
     num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if num_frames == 0:
-        raise Exception(f'Video has not frame! {video_path}')
+        # raise Exception(f'Video has not frame! {video_path}')
+        return None, None, None
     samples = min(samples, num_frames)
     stride = num_frames // samples + 1
-    order = [i for i in range(num_frames) if i % stride == 0][:samples]
+    if order == None:
+        order = [i for i in range(num_frames) if i % stride == 0][:samples]
+    new_order = []
     for _, num in enumerate(order):
         cap.set(cv2.CAP_PROP_POS_FRAMES, num)
         flag, frame = cap.read()
-        assert flag, 'Frame read fail'
+        if not flag:
+            continue
+        new_order.append(num)
         frames.append(frame)
+    order = new_order
     cap.release()
     video_name = os.path.basename(video_path)
     file_names = [video_name[:-4] + f'_{i}.jpg' for i, _ in enumerate(order)]
     assert len(file_names) == len(frames)
-    return file_names, frames
+    return new_order, file_names, frames
 
 
 def img2face(img, face_scale):
