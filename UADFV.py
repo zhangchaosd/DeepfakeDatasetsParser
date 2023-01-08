@@ -29,16 +29,17 @@ def get_splits(videos):
     )  # 30*2, 9*2, 10*2
 
 
-def f1(video_path, faces_path, samples, face_scale, detector):
+def f1(video_path, path, faces_path, samples, face_scale, detector):
     if video_path[-9] == '_':
         k = 'fake'
         label = '1'
     else:
         k = 'real'
         label = '0'
+    video_path = os.path.join(path, video_path)
     save_path = os.path.join(faces_path, k)
     infos = [
-        os.path.join(save_path, img_name) + '\t' + label + '\n'
+        os.path.join(k, img_name) + '\t' + label + '\n'
         for img_name in video2face_pngs(
             video_path, save_path, samples, face_scale, detector
         )
@@ -46,7 +47,7 @@ def f1(video_path, faces_path, samples, face_scale, detector):
     return infos
 
 
-def f2(mode, split, faces_path, samples, face_scale, detector, num_workers):
+def f2(path, faces_path, split, mode, samples, face_scale, detector, num_workers):
     txt_path = os.path.join(faces_path, mode + '.txt')
     infos = []
     with mp.Pool(num_workers) as workers, open(txt_path, 'w') as f:
@@ -54,6 +55,7 @@ def f2(mode, split, faces_path, samples, face_scale, detector, num_workers):
             for info in workers.imap_unordered(
                 partial(
                     f1,
+                    path=path,
                     faces_path=faces_path,
                     samples=samples,
                     face_scale=face_scale,
@@ -68,39 +70,46 @@ def f2(mode, split, faces_path, samples, face_scale, detector, num_workers):
 
 
 def main(path, samples, face_scale, detector, num_workers):
-    faces_path = os.path.join(path, 'faces_test')
+    faces_path = os.path.join(path, 'faces' + str(samples) + detector)
     gen_dirs(faces_path)
-    fake_path = os.path.join(path, 'fake')
-    real_path = os.path.join(path, 'real')
-    fake_videos = get_files_from_path(fake_path)
-    real_videos = get_files_from_path(real_path)
+    fake_rela_path = 'fake'
+    real_rela_path = 'real'
+    fake_videos = get_files_from_path(os.path.join(path, fake_rela_path))
+    real_videos = get_files_from_path(os.path.join(path, real_rela_path))
     assert len(fake_videos) == 49
     assert len(real_videos) == 49
-    real_videos = [os.path.join(real_path, video) for video in real_videos]
+    real_videos = [os.path.join(path, real_rela_path, video) for video in real_videos]
     train_split, val_split, test_split = get_splits(real_videos)
 
+    # print(val_split)
+    # print(os.path.dirname(val_split[0]))
+    # exit()
+
     train_info = f2(
-        'train',
-        train_split,
+        path,
         faces_path,
+        train_split,
+        'train',
         samples,
         face_scale,
         detector,
         num_workers,
     )
     val_info = f2(
-        'val',
-        val_split,
+        path,
         faces_path,
+        val_split,
+        'val',
         samples,
         face_scale,
         detector,
         num_workers,
     )
     test_info = f2(
-        'test',
-        test_split,
+        path,
         faces_path,
+        test_split,
+        'test',
         samples,
         face_scale,
         detector,
