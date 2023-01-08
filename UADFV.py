@@ -47,7 +47,9 @@ def f1(video_path, path, faces_path, samples, face_scale, detector):
     return infos
 
 
-def f2(path, faces_path, split, mode, samples, face_scale, detector, num_workers):
+def f2(
+    path, faces_path, split, mode, samples, face_scale, detector, num_workers
+):
     txt_path = os.path.join(faces_path, mode + '.txt')
     infos = []
     with mp.Pool(num_workers) as workers, open(txt_path, 'w') as f:
@@ -78,7 +80,9 @@ def main(path, samples, face_scale, detector, num_workers):
     real_videos = get_files_from_path(os.path.join(path, real_rela_path))
     assert len(fake_videos) == 49
     assert len(real_videos) == 49
-    real_videos = [os.path.join(path, real_rela_path, video) for video in real_videos]
+    real_videos = [
+        os.path.join(path, real_rela_path, video) for video in real_videos
+    ]
     train_split, val_split, test_split = get_splits(real_videos)
 
     # print(val_split)
