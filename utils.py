@@ -1,14 +1,22 @@
 import argparse
+from functools import partial
+from multiprocessing import Lock
 import os
 import random
 
 import cv2
+# conda install -c https://conda.anaconda.org/conda-forge dlib
+import dlib
 from retinaface.pre_trained_models import get_model
 
 device = 'cuda:0'
 # device = 'cpu'
-model = get_model("resnet50_2020-07-20", max_size=1024, device=device)
-model.eval()
+rt_detector = get_model("resnet50_2020-07-20", max_size=1024, device=device)
+rt_detector.eval()
+
+dlib_detector = dlib.get_frontal_face_detector() #获取人脸分类器
+
+mutex = Lock()
 
 SEED = 1021
 
@@ -21,11 +29,12 @@ def parse_video(
     f,
     samples,
     face_scale,
+    detector,
 ):
     face_save_path = os.path.join(dataset_path, 'faces', rela_path)
     video_path = os.path.join(dataset_path, rela_path, video_name)
-    face_names = video2face_jpgs(
-        video_path, face_save_path, samples, face_scale
+    face_names = video2face_pngs(
+        video_path, face_save_path, samples, face_scale, detector
     )
     if face_names == None:
         return
@@ -40,12 +49,12 @@ def parse_video(
     )
 
 
-def video2face_jpgs(video_path, save_path, samples, face_scale):
+def video2face_pngs(video_path, save_path, samples, face_scale, detector):
     gen_dirs(save_path)
     _, file_names, frames = video2frames(video_path, samples)
-    if frames ==None:
+    if frames == None:
         return None
-    faces = [*map(img2face, frames, [face_scale] * len(frames))]
+    faces = [*map(partial(img2face, face_scale = face_scale, detector = detector), frames)]
     file_names = [file_name for i, file_name in enumerate(file_names) if faces[i] is not None]
     faces = [face for face in faces if face is not None]
     [
@@ -53,7 +62,6 @@ def video2face_jpgs(video_path, save_path, samples, face_scale):
             cv2.imwrite,
             [os.path.join(save_path, fn) for fn in file_names],
             faces,
-            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(faces),
         )
     ]
     return file_names
@@ -61,23 +69,22 @@ def video2face_jpgs(video_path, save_path, samples, face_scale):
 
 def video2frames(video_path, samples, order = None):
     if not os.path.exists(video_path):
-        # raise Exception(f'Video file not exists! {video_path}')
         print(f'Video file not exists! {video_path}')
         return None, None, None
     frames = []
     cap = cv2.VideoCapture(video_path)
     num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if num_frames == 0:
-        # raise Exception(f'Video has not frame! {video_path}')
+        print(f'Video has not frame! {video_path}')
         return None, None, None
     samples = min(samples, num_frames)
     stride = num_frames // samples + 1
     if order == None:
         order = [i for i in range(num_frames) if i % stride == 0][:samples]
     new_order = []
-    for _, num in enumerate(order):
+    for num in order:
         cap.set(cv2.CAP_PROP_POS_FRAMES, num)
-        flag, frame = cap.read()
+        flag, frame = cap.read()  # bgr
         if not flag:
             continue
         new_order.append(num)
@@ -85,26 +92,36 @@ def video2frames(video_path, samples, order = None):
     order = new_order
     cap.release()
     video_name = os.path.basename(video_path)
-    file_names = [video_name[:-4] + f'_{i}.jpg' for i, _ in enumerate(order)]
+    file_names = [video_name[:-4] + f'_{i}.png' for i, _ in enumerate(order)]
     assert len(file_names) == len(frames)
-    return new_order, file_names, frames
+    return order, file_names, frames
 
 
-def img2face(img, face_scale):
-    crop_data = get_face_location(img, face_scale)
+def img2face(img, face_scale, detector):
+    crop_data = get_face_location(img, face_scale, detector)
     if crop_data is None:
         return None
     img = crop_img(img, crop_data)
     return img
 
 
-def get_face_location(img, face_scale):
+def get_face_location(img, face_scale, detector):
     h, w, c = img.shape
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    annotation = model.predict_jsons(img, confidence_threshold=0.3)
-    if len(annotation[0]['bbox']) == 0:
-        return None
-    x1, y1, x2, y2 = annotation[0]['bbox']
+    # img: h, w, c rgb
+    if detector == 'dlib':  #  TODO
+        annotation = dlib_detector(img, 1) # h, w, c rgb
+        if len(annotation)==0:
+            return None
+        x1 = annotation[0].left()
+        y1 = annotation[0].top()
+        x2 = annotation[0].right()
+        y2 = annotation[0].bottom()
+    else:
+        annotation = rt_detector.predict_jsons(img, confidence_threshold=0.3)
+        if len(annotation[0]['bbox']) == 0:
+            return None
+        x1, y1, x2, y2 = annotation[0]['bbox']
     x1, y1, x2, y2 = list(
         map(
             int,
@@ -140,8 +157,10 @@ def read_txt(path):
 
 
 def gen_dirs(path):
+    mutex.acquire()
     if not os.path.exists(path):
         os.makedirs(path)
+    mutex.release()
 
 
 def static_shuffle(l):
@@ -170,6 +189,18 @@ def parse():
         default='FF',
         type=str,
         help='FF or DFD(DeepFakeDetection), only avaliable for FaceForensics++.',
+    )
+    parser.add_argument(
+        '-detector',
+        default='dlib',
+        type=str,
+        help='dlib or retinaface.',
+    )
+    parser.add_argument(
+        '-workers',
+        default=1,
+        type=int,
+        help='Number of processes.',
     )
     args = parser.parse_args()
     return args
