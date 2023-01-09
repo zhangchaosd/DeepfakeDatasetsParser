@@ -85,10 +85,6 @@ def main(path, samples, face_scale, detector, num_workers):
     ]
     train_split, val_split, test_split = get_splits(real_videos)
 
-    # print(val_split)
-    # print(os.path.dirname(val_split[0]))
-    # exit()
-
     train_info = f2(
         path,
         faces_path,

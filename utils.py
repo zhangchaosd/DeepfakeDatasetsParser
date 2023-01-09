@@ -7,12 +7,12 @@ import random
 import cv2
 # conda install -c https://conda.anaconda.org/conda-forge dlib
 import dlib
-from retinaface.pre_trained_models import get_model
+# from retinaface.pre_trained_models import get_model
 
-device = 'cuda:0'
+# device = 'cuda:0'
 # device = 'cpu'
-rt_detector = get_model("resnet50_2020-07-20", max_size=1024, device=device)
-rt_detector.eval()
+# rt_detector = get_model("resnet50_2020-07-20", max_size=1024, device=device)
+# rt_detector.eval()
 
 dlib_detector = dlib.get_frontal_face_detector() #获取人脸分类器
 
