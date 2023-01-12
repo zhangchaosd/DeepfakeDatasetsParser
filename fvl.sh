@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --output=./tdfd5.out # STDOUT
-#SBATCH --error=./edfd5.err # STDERR
+#SBATCH --output=./tdf1.out # STDOUT
+#SBATCH --error=./edf1.err # STDERR
 #SBATCH --cpus-per-task=3
 #SBATCH --gpus-per-node=1
-#SBATCH --job-name=dfd5_m
-#SBATCH --mem=30GB
+#SBATCH --job-name=dfd1_l
+#SBATCH --mem=20GB
 #SBATCH --nodes=1
 #SBATCH --partition=fvl
 #SBATCH --qos=medium
@@ -12,4 +12,4 @@
 #SBATCH --constraint=2080
 
 # conda activate fordataset
-python FaceForensics++.py 5
+python DeeperForensics-1.0.py
