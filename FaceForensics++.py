@@ -251,10 +251,20 @@ def solve(
 
 
 def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detector):
-    video2face_pngs()
-    for q in ['raw', 'c23', 'c40', 'masks']:
-        pass
-    pass
+    raw_order, file_names, raw_frames = video2frames('raw')
+    crop_datas = get_crop_datas(raw_frames)
+    c23_order, _, c23_frames = video2frames('c23')
+    c40_order, _, c40_frames = video2frames('c40')
+    masks_order, _, masks_frames = video2frames('masks')
+    final_orders = list(set(raw_order) & set(c23_order) & set(c40_order) & set(masks_order))
+    crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_order[i] in final_orders]
+    file_names = [file_name for i, file_name in enumerate(file_names) if raw_order[i] in final_orders]
+    save(raw_frames, crop_datas)
+    save(c23_frames, crop_datas)
+    save(c40_frames, crop_datas)
+    save(masks_frames, crop_datas)
+
+    return [], [], []
 
 
 def f1(mode, split, datasets, faces_prefix, subset, path, samples, face_scale, detector, num_workers):
@@ -290,7 +300,7 @@ def f1(mode, split, datasets, faces_prefix, subset, path, samples, face_scale, d
                     split,
                 ):
                     pbar.update()
-                    infos += info
+                    infos += info  # TODO
     print(mode, len(infos))
     with open(txt_path, 'w') as f:
         f.writelines(infos)
