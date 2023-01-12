@@ -1,5 +1,7 @@
+import multiprocessing as mp
 import sys
 import os
+from functools import partial
 import json
 
 import cv2
@@ -47,10 +49,10 @@ def get_ff_splits():
     train_js = './ff++split/train.json'
     val_js = './ff++split/val.json'
     test_js = './ff++split/test.json'
-    return json2list(train_js),json2list(val_js),json2list(test_js)
+    return json2list(train_js), json2list(val_js), json2list(test_js)
 
 
-def get_DFD_splits(original_path, manipulated_path):
+def get_DFD_splits(path):
     train_list = [
         ['01', '02', '03'],
         ['04', '06', '07'],
@@ -60,12 +62,22 @@ def get_DFD_splits(original_path, manipulated_path):
     ]
     val_list = ['05', '08', '16', '17', '28']
     test_list = ['10', '19', '22', '23', '24']
-    idx = int(sys.argv[1])
-    train_list = train_list[idx]
-    val_list = val_list[idx:idx+1]
-    test_list = test_list[idx:idx+1]
-    videos = get_files_from_path(original_path) + get_files_from_path(
-        manipulated_path
+
+    videos = get_files_from_path(
+        os.path.join(
+            path,
+            'original_sequences',
+            'actors',
+            'raw',
+            'videos',
+        )) + get_files_from_path(
+        os.path.join(
+            path,
+            'manipulated_sequences',
+            'DeepFakeDetection',
+            'raw',
+            'videos',
+        )
     )
     train_split = []
     val_split = []
@@ -77,8 +89,8 @@ def get_DFD_splits(original_path, manipulated_path):
             val_split.append(video)
         elif video[:2] in test_list:
             test_split.append(video)
-        # else:
-            # assert False
+        else:
+            assert False
     return train_split, val_split, test_split
 
 
@@ -238,59 +250,87 @@ def solve(
         ]
 
 
-def main(path, samples, face_scale, subset):
-    faces_path = os.path.join(path, 'faces')
-    gen_dirs(faces_path)
+def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detector):
+    video2face_pngs()
+    for q in ['raw', 'c23', 'c40', 'masks']:
+        pass
+    pass
 
 
+def f1(mode, split, datasets, faces_prefix, subset, path, samples, face_scale, detector, num_workers):
+    # txt_path = os.path.join(path, faces_prefix, mode + '.txt')  # TODO
+    infos = []
+    for dataset in datasets:
+        print(f'Now parsing {dataset}...')
+        label = '0'
+        if 'original' == dataset:
+            rela_path = os.path.join(
+                'original_sequences', 'youtube', 'raw', 'videos'  # TODO? remove raw and videos
+            )
+        elif 'DeepFakeDetection_original' == dataset:
+            rela_path = os.path.join(
+                'original_sequences', 'actors', 'raw', 'videos'
+            )
+        else:
+            rela_path = os.path.join('manipulated_sequences', dataset, 'raw', 'videos')
+            label = '1'
+        with mp.Pool(num_workers) as workers:
+            with tqdm(total=len(split)) as pbar:
+                for info in workers.imap_unordered(
+                    partial(
+                        f3,
+                        label=label,
+                        path=path,
+                        rela_path=rela_path,
+                        faces_prefix=faces_prefix,
+                        samples=samples,
+                        face_scale=face_scale,
+                        detector=detector,
+                    ),
+                    split,
+                ):
+                    pbar.update()
+                    infos += info
+    print(mode, len(infos))
+    with open(txt_path, 'w') as f:
+        f.writelines(infos)
+    return infos
 
 
-    # FaceShifter don't have masks
+def main(subset, path, samples, face_scale, detector, num_workers):
+    faces_prefix = 'faces' + str(samples) + detector
+    gen_dirs(os.path.join(path, faces_prefix))
+
     if subset == 'FF':
+        # FaceShifter don't have masks
         datasets = [
             'original',
             'Deepfakes',
             'Face2Face',
             'FaceSwap',
             'NeuralTextures',
+            # 'FaceShifter',
         ]
-        idx = sys.argv[1]
-        assert idx in datasets
-        datasets = [idx]
-        train_split, val_split, test_split = get_ff_splits(
-            # os.path.join(
-            #     path, 'manipulated_sequences', 'Deepfakes', 'raw', 'videos'
-            # )
-        )
+        train_split, val_split, test_split = get_ff_splits()
     else:
-        idx = int(sys.argv[1])
-        assert idx>=0 and idx<5
         datasets = [
-            # 'DeepFakeDetection_original',  # 363
+            'DeepFakeDetection_original',  # 363
             'DeepFakeDetection',  # 3068
         ]
-        train_split, val_split, test_split = get_DFD_splits(
-            os.path.join(
-                path,
-                'original_sequences',
-                'actors',
-                'raw',
-                'videos',
-            ),
-            os.path.join(
-                path,
-                'manipulated_sequences',
-                'DeepFakeDetection',
-                'raw',
-                'videos',
-            ),
-        )
-    for i, dataset in enumerate(datasets):
+        train_split, val_split, test_split = get_DFD_splits(path)
+    
+    all_raw_infos = f1('train', train_split, datasets, faces_prefix, subset, path, samples, face_scale, detector, workers)
+    all_raw_infos += f1('val', val_split, datasets, faces_prefix, subset, path, samples, face_scale, detector, workers)
+    all_raw_infos += f1('test', test_split, datasets, faces_prefix, subset, path, samples, face_scale, detector, workers)
+
+    f2(all_raw_infos, 'raw')
+    f2(all_raw_infos, 'c23')
+    f2(all_raw_infos, 'c40')
+    return
+
+    for dataset in datasets:
         print(f'Now parsing {dataset}...')
-        dataset_i = dataset
-        if dataset_i == 'DeepFakeDetection':
-            print(f'Now parsing {sys.argv[1]}...')
-            dataset_i = dataset_i + '_' + sys.argv[1] +'_'
+
         f_train_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_raw.txt'), 'w')
         f_val_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_raw.txt'), 'w')
         f_test_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_raw.txt'), 'w')
@@ -300,20 +340,18 @@ def main(path, samples, face_scale, subset):
         f_train_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_c40.txt'), 'w')
         f_val_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_c40.txt'), 'w')
         f_test_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_c40.txt'), 'w')
-        label = '0 '
+        label = '0'
         if 'original' == dataset:
-            raw_path = os.path.join(
-                'original_sequences', 'youtube', 'raw', 'videos'
+            rela_path = os.path.join(
+                'original_sequences', 'youtube', 'raw', 'videos'  # TODO? remove raw and videos
             )
         elif 'DeepFakeDetection_original' == dataset:
-            raw_path = os.path.join(
+            rela_path = os.path.join(
                 'original_sequences', 'actors', 'raw', 'videos'
             )
         else:
-            raw_path = 'manipulated_sequences'
-            raw_path = os.path.join(raw_path, dataset, 'raw', 'videos')
-            label = '1 '
-        label = label + str(i)
+            rela_path = os.path.join('manipulated_sequences', dataset, 'raw', 'videos')
+            label = '1'
 
         gen_dirs(os.path.join(faces_path, raw_path))
         c23_path = raw_path.replace('raw', 'c23')
@@ -570,11 +608,11 @@ def regen_dfd_txt(path):
         f.writelines(c40_all_txt)
 
 if __name__ == '__main__':
-    dataset_path = '/share/home/zhangchao/datasets_io03_ssd/ff++'
+    # dataset_path = '/share/home/zhangchao/datasets_io03_ssd/ff++'
     # main('/share/home/zhangchao/datasets_io03_ssd/ff++', 50, 1.3, 'FF')
     # main('/share/home/zhangchao/datasets_io03_ssd/ff++', 50, 1.3, 'DFD')
-    regen_dfd_txt(dataset_path)
+    # regen_dfd_txt(dataset_path)
 
-    exit()
+    # exit()
     args = parse()
-    main(args.path, args.samples, args.scale, args.subset)
+    main(args.subset, args.path, args.samples, args.scale, args.detector, args.workers)
