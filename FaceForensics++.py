@@ -250,19 +250,34 @@ def solve(
         ]
 
 
+def f4(frames, crop_datas, save_path):
+    [
+        *map(
+            cv2.imwrite,
+            [os.path.join(save_path, fn) for fn in frames[1]],
+            map(crop_img, frames[:,2], crop_datas),
+        )
+    ]
+    pass
+
+
 def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detector):
-    raw_order, file_names, raw_frames = video2frames('raw')
-    crop_datas = get_crop_datas(raw_frames)
-    c23_order, _, c23_frames = video2frames('c23')
-    c40_order, _, c40_frames = video2frames('c40')
-    masks_order, _, masks_frames = video2frames('masks')
-    final_orders = list(set(raw_order) & set(c23_order) & set(c40_order) & set(masks_order))
-    crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_order[i] in final_orders]
-    file_names = [file_name for i, file_name in enumerate(file_names) if raw_order[i] in final_orders]
-    save(raw_frames, crop_datas)
-    save(c23_frames, crop_datas)
-    save(c40_frames, crop_datas)
-    save(masks_frames, crop_datas)
+    raw_frames = video2frames(os.path.join(path,rela_path,'raw','videos',video), samples)  # orders, file_names, raw_frames
+    crop_datas = map(partial(get_face_location, face_scale=face_scale, detector=detector), raw_frames[2])
+    c23_frames = video2frames(os.path.join(path,rela_path,'c23','videos',video), samples)
+    c40_frames = video2frames(os.path.join(path,rela_path,'c40','videos',video), samples)
+    masks_frames = video2frames(os.path.join(path,rela_path,'masks','videos',video), samples)  # TODO
+    # masks_order, _, masks_frames = video2frames('masks')
+    final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]) & set(masks_frames[0]))
+    crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_frames[0][i] in final_orders]
+    raw_frames = [(frame_ind, raw_frames[1][i], raw_frames[2][i]) for i, frame_ind in enumerate(raw_frames[0]) if frame_ind in final_orders]
+    c23_frames = [(frame_ind, c23_frames[1][i], c23_frames[2][i]) for i, frame_ind in enumerate(c23_frames[0]) if frame_ind in final_orders]
+    c40_frames = [(frame_ind, c40_frames[1][i], c40_frames[2][i]) for i, frame_ind in enumerate(c40_frames[0]) if frame_ind in final_orders]
+    masks_frames = [(frame_ind, masks_frames[1][i], masks_frames[2][i]) for i, frame_ind in enumerate(masks_frames[0]) if frame_ind in final_orders]
+    f4(raw_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'raw','videos'))
+    f4(c23_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'c23','videos'))
+    f4(c40_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'c40','videos'))
+    f4(masks_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'masks','videos'))
 
     return [], [], []
 
@@ -275,14 +290,14 @@ def f1(mode, split, datasets, faces_prefix, subset, path, samples, face_scale, d
         label = '0'
         if 'original' == dataset:
             rela_path = os.path.join(
-                'original_sequences', 'youtube', 'raw', 'videos'  # TODO? remove raw and videos
+                'original_sequences', 'youtube'#, 'raw', 'videos'  # TODO? remove raw and videos
             )
         elif 'DeepFakeDetection_original' == dataset:
             rela_path = os.path.join(
-                'original_sequences', 'actors', 'raw', 'videos'
+                'original_sequences', 'actors'#, 'raw', 'videos'
             )
         else:
-            rela_path = os.path.join('manipulated_sequences', dataset, 'raw', 'videos')
+            rela_path = os.path.join('manipulated_sequences', dataset)
             label = '1'
         with mp.Pool(num_workers) as workers:
             with tqdm(total=len(split)) as pbar:
