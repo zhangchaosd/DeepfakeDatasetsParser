@@ -1,5 +1,4 @@
 import multiprocessing as mp
-import sys
 import os
 from functools import partial
 import json
@@ -12,24 +11,8 @@ from utils import (
     get_face_location,
     get_files_from_path,
     parse,
-    static_shuffle,
     video2frames,
 )
-
-
-def get_source_videos(videos):
-    res = []
-    for video in videos:
-        res.append(video[:3] + '.mp4')
-        res.append(video[4:])
-    return res
-
-
-def double_videos(videos):
-    res = []
-    for video in videos:
-        res.append(video[4:7] + '_' + video[:3] + '.mp4')
-    return res + videos
 
 
 def json2list(js):
@@ -114,8 +97,14 @@ def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detecto
     raw_rela_path = os.path.join(path,rela_path,'raw','videos',video)
     c23_rela_path = os.path.join(path,rela_path,'c23','videos',video)
     c40_rela_path = os.path.join(path,rela_path,'c40','videos',video)
+    gen_dirs(os.path.join(path, raw_rela_path))
+    gen_dirs(os.path.join(path, c23_rela_path))
+    gen_dirs(os.path.join(path, c40_rela_path))
     raw_frames = video2frames(os.path.join(path, raw_rela_path), samples)  # orders, file_names, raw_frames
-    crop_datas = map(partial(get_face_location, face_scale=face_scale, detector=detector), raw_frames[2])
+    if raw_frames is None:
+        return [], [], []
+    crop_datas = [*map(partial(get_face_location, face_scale=face_scale, detector=detector), raw_frames[2])]
+    raw_frames = [raw_frame for i, raw_frame in enumerate(raw_frames) if crop_datas[i] is not None]
     c23_frames = video2frames(os.path.join(path,c23_rela_path,video), samples)
     c40_frames = video2frames(os.path.join(path,c40_rela_path,video), samples)
     # masks_order, _, masks_frames = video2frames('masks')
@@ -132,6 +121,7 @@ def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detecto
     c40_infos = [os.path.join(faces_prefix,c40_rela_path,fn)+f'\t{label}\n' for fn in c40_frames[:,1]]
     if label =='1':  # FaceShifter will ERR
         masks_rela_path = os.path.join(path,rela_path,'masks','videos',video)
+        gen_dirs(os.path.join(path, masks_rela_path))
         masks_frames = video2frames(os.path.join(path,masks_rela_path,video), samples)
         masks_frames = [(frame_ind, masks_frames[1][i], masks_frames[2][i]) for i, frame_ind in enumerate(masks_frames[0]) if frame_ind in final_orders]
         masks_frames[:,2] = [*map(bina_mask,masks_frames[:,2])]
@@ -146,6 +136,7 @@ def f5(txt_path, infos):
         f.writelines(infos)
 
 def f1(mode, split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers):
+    print(f'Now parsing {subset} {mode}...')
     raw_infos = []
     c23_infos = []
     c40_infos = []
@@ -213,24 +204,21 @@ def main(subset, path, samples, face_scale, detector, num_workers):
         ]
         train_split, val_split, test_split = get_DFD_splits(path)
     
-    all_raw_infos, all_c23_infos, all_c40_infos = f1('train', train_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
-    all_raw_infos += f1('val', val_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
-    all_raw_infos += f1('test', test_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
+    train_raw_infos, train_c23_infos, train_c40_infos = f1('train', train_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
+    val_raw_infos, val_c23_infos, val_c40_infos = f1('val', val_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
+    test_raw_infos, test_c23_infos, test_c40_infos = f1('test', test_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
 
-    f2(all_raw_infos, 'raw')
-    f2(all_raw_infos, 'c23')
-    f2(all_raw_infos, 'c40')
-    return
-
-
+    f5(os.path.join(path,faces_prefix,f'{subset}_all_raw.txt'),train_raw_infos+val_raw_infos+test_raw_infos)
+    f5(os.path.join(path,faces_prefix,f'{subset}_all_c23.txt'),train_c23_infos+val_c23_infos+test_c23_infos)
+    f5(os.path.join(path,faces_prefix,f'{subset}_all_c40.txt'),train_c40_infos+val_c40_infos+test_c40_infos)
 
 
 '''
 change code 'return' to 'continue' to download the full datasets in download_ffdf.py
 '''
-
-
-
+# real is 0
+# python FaceForensics++.py -path '/share/home/zhangchao/datasets_io03_ssd/ff++' -subset FF -samples 120 -scale 1.3 -detector dlib -workers 8
+# python FaceForensics++.py -path '/share/home/zhangchao/datasets_io03_ssd/ff++' -subset DFD -samples 120 -scale 1.3 -detector dlib -workers 8
 if __name__ == '__main__':
     args = parse()
     main(args.subset, args.path, args.samples, args.scale, args.detector, args.workers)

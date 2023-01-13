@@ -70,13 +70,13 @@ def video2face_pngs(video_path, save_path, samples, face_scale, detector):
 def video2frames(video_path, samples, order = None):
     if not os.path.exists(video_path):
         print(f'Video file not exists! {video_path}')
-        return None, None, None
+        return None
     frames = []
     cap = cv2.VideoCapture(video_path)
     num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if num_frames == 0:
         print(f'Video has not frame! {video_path}')
-        return None, None, None
+        return None
     samples = min(samples, num_frames)
     stride = num_frames // samples + 1
     if order == None:
