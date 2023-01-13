@@ -187,7 +187,7 @@ def f1(mode, split, datasets, subset, faces_prefix, path, samples, face_scale, d
 
 
 def main(subset, path, samples, face_scale, detector, num_workers):
-    faces_prefix = 'faces' + str(samples) + detector
+    faces_prefix = f'faces{samples}detector'
     gen_dirs(os.path.join(path, faces_prefix))
 
     if subset == 'FF':
