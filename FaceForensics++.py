@@ -116,7 +116,7 @@ def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detecto
         final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]) & set(masks_frames[0]))
     else:
         final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]))
-    crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_frames[0][i] in final_orders]
+    crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_frames[0][i] in final_orders]  # this err
     raw_frames = [(frame_ind, raw_frames[1][i], raw_frames[2][i]) for i, frame_ind in enumerate(raw_frames[0]) if frame_ind in final_orders]
     c23_frames = [(frame_ind, c23_frames[1][i], c23_frames[2][i]) for i, frame_ind in enumerate(c23_frames[0]) if frame_ind in final_orders]
     c40_frames = [(frame_ind, c40_frames[1][i], c40_frames[2][i]) for i, frame_ind in enumerate(c40_frames[0]) if frame_ind in final_orders]
@@ -187,7 +187,7 @@ def f1(mode, split, datasets, subset, faces_prefix, path, samples, face_scale, d
 
 
 def main(subset, path, samples, face_scale, detector, num_workers):
-    faces_prefix = f'faces{samples}detector'
+    faces_prefix = f'faces{samples}{detector}'
     gen_dirs(os.path.join(path, faces_prefix))
 
     if subset == 'FF':
