@@ -99,157 +99,6 @@ def bina_mask(mask):
     return mask
 
 
-def solve(
-    dataset_path,
-    faces_path,
-    video_path,
-    video_name,
-    raw_f,
-    c23_f,
-    c40_f,
-    label,
-    samples,
-    face_scale,
-    has_masks,
-):
-    order, file_names, raw_frames = video2frames(
-        os.path.join(dataset_path, video_path, video_name), samples
-    )
-    if file_names == None:
-        return
-    _,_, c23_frames = video2frames(
-        os.path.join(dataset_path, video_path.replace('raw', 'c23'), video_name), samples, order
-    )
-    _,_, c40_frames = video2frames(
-        os.path.join(dataset_path, video_path.replace('raw', 'c40'), video_name), samples, order
-    )
-    if has_masks:
-        _,_, masks_frames = video2frames(
-            os.path.join(dataset_path, video_path.replace('raw', 'masks'), video_name), samples, order
-        )
-    
-    crop_datas = [
-        *map(get_face_location, raw_frames, [face_scale] * len(raw_frames))
-    ]
-    file_names = [
-        file_name
-        for i, file_name in enumerate(file_names)
-        if crop_datas[i] is not None
-    ]
-    raw_file_names = [
-        os.path.join(faces_path, video_path, file_name)
-        for file_name in file_names
-    ]
-    c23_file_names = [
-        os.path.join(faces_path, video_path.replace('raw', 'c23'), file_name)
-        for file_name in file_names
-    ]
-    c40_file_names = [
-        os.path.join(faces_path, video_path.replace('raw', 'c40'), file_name)
-        for file_name in file_names
-    ]
-    if has_masks:
-        masks_file_names = [
-            os.path.join(faces_path, video_path.replace('raw', 'masks'), file_name)
-            for file_name in file_names
-        ]
-    raw_frames = [
-        frame for i, frame in enumerate(raw_frames) if crop_datas[i] is not None
-    ]
-    c23_frames = [
-        frame for i, frame in enumerate(c23_frames) if crop_datas[i] is not None
-    ]
-    c40_frames = [
-        frame for i, frame in enumerate(c40_frames) if crop_datas[i] is not None
-    ]
-    if has_masks:
-        masks_frames = masks_frames[:len(crop_datas)]
-        masks_frames = [
-            frame for i, frame in enumerate(masks_frames) if crop_datas[i] is not None
-        ]
-    crop_datas = [
-        crop_data for crop_data in crop_datas if crop_data is not None
-    ]
-    assert len(raw_frames) == len(c23_frames)
-    assert len(raw_frames) == len(c40_frames)
-    if has_masks:
-        if len(raw_frames) != len(masks_frames):
-            print('raw s != masks',len(raw_frames),len(masks_frames))
-            return
-    assert len(raw_frames) == len(file_names)
-    assert len(raw_frames) == len(crop_datas)
-    raw_faces = [*map(crop_img, raw_frames, crop_datas)]
-    [
-        *map(
-            cv2.imwrite,
-            raw_file_names,
-            raw_faces,
-            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(raw_faces),
-        )
-    ]
-    raw_f.writelines(
-        [
-            os.path.join('faces', video_path, os.path.basename(img_name))
-            + '\t'
-            + label
-            + '' if not has_masks else '\t'+os.path.join('faces', video_path.replace('raw', 'masks'), os.path.basename(img_name))
-            + '\n'
-            for img_name in file_names
-        ]
-    )
-
-    c23_faces = [*map(crop_img, c23_frames, crop_datas)]
-    [
-        *map(
-            cv2.imwrite,
-            c23_file_names,
-            c23_faces,
-            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(c23_faces),
-        )
-    ]
-    c23_f.writelines(
-        [
-            os.path.join('faces', video_path.replace('raw', 'c23'), os.path.basename(img_name))
-            + ' '
-            + label
-            + '' if not has_masks else ' '+os.path.join('faces', video_path.replace('raw', 'masks'), os.path.basename(img_name))
-            + '\n'
-            for img_name in file_names
-        ]
-    )
-
-    c40_faces = [*map(crop_img, c40_frames, crop_datas)]
-    [
-        *map(
-            cv2.imwrite,
-            c40_file_names,
-            c40_faces,
-            [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(c40_faces),
-        )
-    ]
-    c40_f.writelines(
-        [
-            os.path.join('faces', video_path.replace('raw', 'c40'), os.path.basename(img_name))
-            + ' '
-            + label
-            + '' if not has_masks else ' '+os.path.join('faces', video_path.replace('raw', 'masks'), os.path.basename(img_name))
-            + '\n'
-            for img_name in file_names
-        ]
-    )
-    if has_masks:
-        masks_faces = [*map(crop_img, masks_frames, crop_datas)]
-        masks_faces = [*map(bina_mask, masks_faces)]
-        [
-            *map(
-                cv2.imwrite,
-                masks_file_names,
-                masks_faces,
-                [[int(cv2.IMWRITE_JPEG_QUALITY), 100]] * len(masks_faces),
-            )
-        ]
-
-
 def f4(frames, crop_datas, save_path):
     [
         *map(
@@ -262,46 +111,61 @@ def f4(frames, crop_datas, save_path):
 
 
 def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detector):
-    raw_frames = video2frames(os.path.join(path,rela_path,'raw','videos',video), samples)  # orders, file_names, raw_frames
+    raw_rela_path = os.path.join(path,rela_path,'raw','videos',video)
+    c23_rela_path = os.path.join(path,rela_path,'c23','videos',video)
+    c40_rela_path = os.path.join(path,rela_path,'c40','videos',video)
+    raw_frames = video2frames(os.path.join(path, raw_rela_path), samples)  # orders, file_names, raw_frames
     crop_datas = map(partial(get_face_location, face_scale=face_scale, detector=detector), raw_frames[2])
-    c23_frames = video2frames(os.path.join(path,rela_path,'c23','videos',video), samples)
-    c40_frames = video2frames(os.path.join(path,rela_path,'c40','videos',video), samples)
-    masks_frames = video2frames(os.path.join(path,rela_path,'masks','videos',video), samples)  # TODO
+    c23_frames = video2frames(os.path.join(path,c23_rela_path,video), samples)
+    c40_frames = video2frames(os.path.join(path,c40_rela_path,video), samples)
     # masks_order, _, masks_frames = video2frames('masks')
     final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]) & set(masks_frames[0]))
     crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_frames[0][i] in final_orders]
     raw_frames = [(frame_ind, raw_frames[1][i], raw_frames[2][i]) for i, frame_ind in enumerate(raw_frames[0]) if frame_ind in final_orders]
     c23_frames = [(frame_ind, c23_frames[1][i], c23_frames[2][i]) for i, frame_ind in enumerate(c23_frames[0]) if frame_ind in final_orders]
     c40_frames = [(frame_ind, c40_frames[1][i], c40_frames[2][i]) for i, frame_ind in enumerate(c40_frames[0]) if frame_ind in final_orders]
-    masks_frames = [(frame_ind, masks_frames[1][i], masks_frames[2][i]) for i, frame_ind in enumerate(masks_frames[0]) if frame_ind in final_orders]
-    f4(raw_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'raw','videos'))
-    f4(c23_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'c23','videos'))
-    f4(c40_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'c40','videos'))
-    f4(masks_frames, crop_datas, os.path.join(path,faces_prefix,rela_path,'masks','videos'))
+    f4(raw_frames, crop_datas, os.path.join(path,faces_prefix,raw_rela_path))
+    f4(c23_frames, crop_datas, os.path.join(path,faces_prefix,c23_rela_path))
+    f4(c40_frames, crop_datas, os.path.join(path,faces_prefix,c40_rela_path))
+    raw_infos = [os.path.join(faces_prefix,raw_rela_path,fn)+f'\t{label}\n' for fn in raw_frames[:,1]]
+    c23_infos = [os.path.join(faces_prefix,c23_rela_path,fn)+f'\t{label}\n' for fn in c23_frames[:,1]]
+    c40_infos = [os.path.join(faces_prefix,c40_rela_path,fn)+f'\t{label}\n' for fn in c40_frames[:,1]]
+    if label =='1':  # FaceShifter will ERR
+        masks_rela_path = os.path.join(path,rela_path,'masks','videos',video)
+        masks_frames = video2frames(os.path.join(path,masks_rela_path,video), samples)
+        masks_frames = [(frame_ind, masks_frames[1][i], masks_frames[2][i]) for i, frame_ind in enumerate(masks_frames[0]) if frame_ind in final_orders]
+        masks_frames[:,2] = [*map(bina_mask,masks_frames[:,2])]
+        f4(masks_frames, crop_datas, os.path.join(path,faces_prefix,masks_rela_path))
+        raw_infos = [info[:-1]+'\t'+os.path.join(faces_prefix,masks_rela_path,masks_frames[i][1])+'\n' for i, info in enumerate(raw_infos)]
+        c23_infos = [info[:-1]+'\t'+os.path.join(faces_prefix,masks_rela_path,masks_frames[i][1])+'\n' for i, info in enumerate(c23_infos)]
+        c40_infos = [info[:-1]+'\t'+os.path.join(faces_prefix,masks_rela_path,masks_frames[i][1])+'\n' for i, info in enumerate(c40_infos)]
+    return raw_infos, c23_infos, c40_infos
 
-    return [], [], []
+def f5(txt_path, infos):
+    with open(txt_path, 'w') as f:
+        f.writelines(infos)
 
-
-def f1(mode, split, datasets, faces_prefix, subset, path, samples, face_scale, detector, num_workers):
-    # txt_path = os.path.join(path, faces_prefix, mode + '.txt')  # TODO
-    infos = []
+def f1(mode, split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers):
+    raw_infos = []
+    c23_infos = []
+    c40_infos = []
     for dataset in datasets:
         print(f'Now parsing {dataset}...')
         label = '0'
         if 'original' == dataset:
             rela_path = os.path.join(
-                'original_sequences', 'youtube'#, 'raw', 'videos'  # TODO? remove raw and videos
+                'original_sequences', 'youtube'
             )
         elif 'DeepFakeDetection_original' == dataset:
             rela_path = os.path.join(
-                'original_sequences', 'actors'#, 'raw', 'videos'
+                'original_sequences', 'actors'
             )
         else:
             rela_path = os.path.join('manipulated_sequences', dataset)
             label = '1'
         with mp.Pool(num_workers) as workers:
             with tqdm(total=len(split)) as pbar:
-                for info in workers.imap_unordered(
+                for raw_info, c23_info, c40_info in workers.imap_unordered(
                     partial(
                         f3,
                         label=label,
@@ -315,11 +179,16 @@ def f1(mode, split, datasets, faces_prefix, subset, path, samples, face_scale, d
                     split,
                 ):
                     pbar.update()
-                    infos += info  # TODO
-    print(mode, len(infos))
-    with open(txt_path, 'w') as f:
-        f.writelines(infos)
-    return infos
+                    raw_infos += raw_info
+                    c23_infos += c23_info
+                    c40_infos += c40_info
+    assert len(raw_infos)==len(c23_infos)
+    assert len(raw_infos)==len(c40_infos)
+    print(mode, datasets, len(raw_infos))
+    f5(os.path.join(path, faces_prefix, f'{subset}_{mode}_raw.txt'), raw_infos)
+    f5(os.path.join(path, faces_prefix, f'{subset}_{mode}_c23.txt'), c23_infos)
+    f5(os.path.join(path, faces_prefix, f'{subset}_{mode}_c40.txt'), c40_infos)
+    return raw_infos, c23_infos, c40_infos
 
 
 def main(subset, path, samples, face_scale, detector, num_workers):
@@ -344,300 +213,24 @@ def main(subset, path, samples, face_scale, detector, num_workers):
         ]
         train_split, val_split, test_split = get_DFD_splits(path)
     
-    all_raw_infos = f1('train', train_split, datasets, faces_prefix, subset, path, samples, face_scale, detector, workers)
-    all_raw_infos += f1('val', val_split, datasets, faces_prefix, subset, path, samples, face_scale, detector, workers)
-    all_raw_infos += f1('test', test_split, datasets, faces_prefix, subset, path, samples, face_scale, detector, workers)
+    all_raw_infos, all_c23_infos, all_c40_infos = f1('train', train_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
+    all_raw_infos += f1('val', val_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
+    all_raw_infos += f1('test', test_split, datasets, subset, faces_prefix, path, samples, face_scale, detector, num_workers)
 
     f2(all_raw_infos, 'raw')
     f2(all_raw_infos, 'c23')
     f2(all_raw_infos, 'c40')
     return
 
-    for dataset in datasets:
-        print(f'Now parsing {dataset}...')
 
-        f_train_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_raw.txt'), 'w')
-        f_val_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_raw.txt'), 'w')
-        f_test_raw = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_raw.txt'), 'w')
-        f_train_c23 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_c23.txt'), 'w')
-        f_val_c23 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_c23.txt'), 'w')
-        f_test_c23 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_c23.txt'), 'w')
-        f_train_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_train_c40.txt'), 'w')
-        f_val_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_val_c40.txt'), 'w')
-        f_test_c40 = open(os.path.join(faces_path, subset + '_' + dataset_i + '_test_c40.txt'), 'w')
-        label = '0'
-        if 'original' == dataset:
-            rela_path = os.path.join(
-                'original_sequences', 'youtube', 'raw', 'videos'  # TODO? remove raw and videos
-            )
-        elif 'DeepFakeDetection_original' == dataset:
-            rela_path = os.path.join(
-                'original_sequences', 'actors', 'raw', 'videos'
-            )
-        else:
-            rela_path = os.path.join('manipulated_sequences', dataset, 'raw', 'videos')
-            label = '1'
-
-        gen_dirs(os.path.join(faces_path, raw_path))
-        c23_path = raw_path.replace('raw', 'c23')
-        gen_dirs(os.path.join(faces_path, c23_path))
-        c40_path = raw_path.replace('raw', 'c40')
-        gen_dirs(os.path.join(faces_path, c40_path))
-        if 'original' not in dataset:
-            masks_path = raw_path.replace('raw', 'masks')
-            gen_dirs(os.path.join(faces_path, masks_path))
-
-        raw_videos = get_files_from_path(os.path.join(path, raw_path))
-        raw_videos = raw_videos[2978:]
-        for video in tqdm(raw_videos):
-            if video in train_split:
-                f_raw = f_train_raw
-                f_c23 = f_train_c23
-                f_c40 = f_train_c40
-            elif video in val_split:
-                f_raw = f_val_raw
-                f_c23 = f_val_c23
-                f_c40 = f_val_c40
-            elif video in test_split:
-                f_raw = f_test_raw
-                f_c23 = f_test_c23
-                f_c40 = f_test_c40
-            else:
-                continue
-
-            solve(
-                path,
-                faces_path,
-                raw_path,
-                video,
-                f_raw,
-                f_c23,
-                f_c40,
-                label,
-                samples,
-                face_scale,
-                'original' not in dataset,
-            )
-        f_train_raw.close()
-        f_val_raw.close()
-        f_test_raw.close()
-        f_train_c23.close()
-        f_val_c23.close()
-        f_test_c23.close()
-        f_train_c40.close()
-        f_val_c40.close()
-        f_test_c40.close()
 
 
 '''
 change code 'return' to 'continue' to download the full datasets in download_ffdf.py
 '''
-'''
-usage:
-  FF:
-    python FaceForensics++.py original
-    python FaceForensics++.py Deepfakes
-    python FaceForensics++.py Face2Face
-    python FaceForensics++.py FaceSwap
-    python FaceForensics++.py NeuralTextures
-    regen_ff_txt()
-  DFD:
-    python FaceForensics++.py 0
-    python FaceForensics++.py 1
-    python FaceForensics++.py 2
-    python FaceForensics++.py 3
-    python FaceForensics++.py 4
-'''
-def list2set(split):
-    split = [s[:3] for s in split]
-    return set(split)
-def check_exist(txt,path):
-    for line in txt:
-        ss = line.strip().split()
-        pa = os.path.join(path,ss[0])
-        if not os.path.exists(pa):
-            print('!!!!!',pa)
-        if len(ss)==3:
-            pa = os.path.join(path,ss[2])
-            if not os.path.exists(pa):
-                print('!!!!!',pa)
-# txt files are wrong, so call this function to regenerate these txt files
-def regen_ff_txt(path):
-    subsets = ['Deepfakes','Face2Face','FaceSwap','NeuralTextures']
-    comps = ['raw','c23','c40']
-    modes = ['train','val','test']
-    train_split, val_split, test_split = get_ff_splits()
-    train_split = list2set(train_split)
-    val_split = list2set(val_split)
-    test_split = list2set(test_split)
-    # raw
-    train_txt = []
-    val_txt = []
-    test_txt = []
-    files = os.listdir(os.path.join(path,'faces','original_sequences','youtube','raw','videos'))
-    for file in files:
-        info = os.path.join('faces','original_sequences','youtube','raw','videos',file) + '\t0\n'
-        if file[:3] in train_split:
-            train_txt.append(info)
-        elif file[:3] in val_split:
-            val_txt.append(info)
-        elif file[:3] in test_split:
-            test_txt.append(info)
-        else:
-            assert False
-    for subset in subsets:
-        files = os.listdir(os.path.join(path,'faces','manipulated_sequences',subset,'raw','videos'))
-        for file in files:
-            info = os.path.join('faces','manipulated_sequences',subset,'raw','videos',file)
-            info = info + '\t1\t' + info.replace('raw', 'masks') + '\n'
-            if file[:3] in train_split:
-                train_txt.append(info)
-            elif file[:3] in val_split:
-                val_txt.append(info)
-            elif file[:3] in test_split:
-                test_txt.append(info)
-            else:
-                assert False
-    print(len(train_txt))
-    print(len(val_txt))
-    print(len(test_txt))
-    check_exist(train_txt,path)
-    check_exist(val_txt,path)
-    check_exist(test_txt,path)
-    with open(os.path.join(path,'faces','ff_train_raw.txt'),'w') as f:
-        f.writelines(train_txt)
-    with open(os.path.join(path,'faces','ff_val_raw.txt'),'w') as f:
-        f.writelines(val_txt)
-    with open(os.path.join(path,'faces','ff_test_raw.txt'),'w') as f:
-        f.writelines(test_txt)
-    train_txt = [l.replace('raw','c23') for l in train_txt]
-    val_txt = [l.replace('raw','c23') for l in val_txt]
-    test_txt = [l.replace('raw','c23') for l in test_txt]
-    check_exist(train_txt,path)
-    check_exist(val_txt,path)
-    check_exist(test_txt,path)
-    with open(os.path.join(path,'faces','ff_train_c23.txt'),'w') as f:
-        f.writelines(train_txt)
-    with open(os.path.join(path,'faces','ff_val_c23.txt'),'w') as f:
-        f.writelines(val_txt)
-    with open(os.path.join(path,'faces','ff_test_c23.txt'),'w') as f:
-        f.writelines(test_txt)
-    train_txt = [l.replace('c23','c40') for l in train_txt]
-    val_txt = [l.replace('c23','c40') for l in val_txt]
-    test_txt = [l.replace('c23','c40') for l in test_txt]
-    check_exist(train_txt,path)
-    check_exist(val_txt,path)
-    check_exist(test_txt,path)
-    with open(os.path.join(path,'faces','ff_train_c40.txt'),'w') as f:
-        f.writelines(train_txt)
-    with open(os.path.join(path,'faces','ff_val_c40.txt'),'w') as f:
-        f.writelines(val_txt)
-    with open(os.path.join(path,'faces','ff_test_c40.txt'),'w') as f:
-        f.writelines(test_txt)
 
-def regen_dfd_txt(path):
-    train_split = [
-        '01', '02', '03',
-        '04', '06', '07',
-        '09', '11', '12', '13',
-        '14', '15', '18', '20',
-        '21', '25', '26', '27',
-    ]
-    val_split = ['05', '08', '16', '17', '28']
-    test_split = ['10', '19', '22', '23', '24']
-    # raw
-    train_txt = []
-    val_txt = []
-    test_txt = []
-    raw_path = os.path.join(path,'faces','original_sequences','actors','raw','videos')
-    c23_path = raw_path.replace('raw', 'c23')
-    c40_path = raw_path.replace('raw', 'c40')
-    masks_path = raw_path.replace('raw', 'masks')
-    raw_files = os.listdir(raw_path)
-    for file in raw_files:
-        if not (os.path.exists(os.path.join(c23_path,file)) and os.path.exists(os.path.join(c40_path,file))):
-            print(file, 'not complete')
-            continue
-        info = os.path.join('faces','original_sequences','actors','raw','videos',file) + '\t0\n'
-        if file[:2] in train_split:
-            train_txt.append(info)
-        elif file[:2] in val_split:
-            val_txt.append(info)
-        elif file[:2] in test_split:
-            test_txt.append(info)
-        else:
-            assert False
-    raw_path = os.path.join(path,'faces','manipulated_sequences','DeepFakeDetection','raw','videos')
-    c23_path = raw_path.replace('raw', 'c23')
-    c40_path = raw_path.replace('raw', 'c40')
-    masks_path = raw_path.replace('raw', 'masks')
-    raw_files = os.listdir(raw_path)
-    for file in raw_files:
-        if not (os.path.exists(os.path.join(c23_path,file)) and os.path.exists(os.path.join(c40_path,file)) and os.path.exists(os.path.join(masks_path,file))):
-            print(file, 'not complete 2')
-            continue
-        info = os.path.join('faces','manipulated_sequences','DeepFakeDetection','raw','videos',file)
-        info = info + '\t1\t' + info.replace('raw', 'masks') + '\n'
-        if file[:2] in train_split:
-            train_txt.append(info)
-        elif file[:2] in val_split:
-            val_txt.append(info)
-        elif file[:2] in test_split:
-            test_txt.append(info)
-        else:
-            assert False
-    print(len(train_txt))
-    print(len(val_txt))
-    print(len(test_txt))
-    # check_exist(train_txt,path)
-    # check_exist(val_txt,path)
-    # check_exist(test_txt,path)
-    with open(os.path.join(path,'faces','dfd_train_raw.txt'),'w') as f:
-        f.writelines(train_txt)
-    with open(os.path.join(path,'faces','dfd_val_raw.txt'),'w') as f:
-        f.writelines(val_txt)
-    with open(os.path.join(path,'faces','dfd_test_raw.txt'),'w') as f:
-        f.writelines(test_txt)
-    c23_train_txt = [l.replace('raw','c23') for l in train_txt]
-    c23_val_txt = [l.replace('raw','c23') for l in val_txt]
-    c23_test_txt = [l.replace('raw','c23') for l in test_txt]
-    # check_exist(train_txt,path)
-    # check_exist(val_txt,path)
-    # check_exist(test_txt,path)
-    with open(os.path.join(path,'faces','dfd_train_c23.txt'),'w') as f:
-        f.writelines(c23_train_txt)
-    with open(os.path.join(path,'faces','dfd_val_c23.txt'),'w') as f:
-        f.writelines(c23_val_txt)
-    with open(os.path.join(path,'faces','dfd_test_c23.txt'),'w') as f:
-        f.writelines(c23_test_txt)
-    c40_train_txt = [l.replace('raw','c40') for l in train_txt]
-    c40_val_txt = [l.replace('raw','c40') for l in val_txt]
-    c40_test_txt = [l.replace('raw','c40') for l in test_txt]
-    # check_exist(train_txt,path)
-    # check_exist(val_txt,path)
-    # check_exist(test_txt,path)
-    with open(os.path.join(path,'faces','dfd_train_c40.txt'),'w') as f:
-        f.writelines(c40_train_txt)
-    with open(os.path.join(path,'faces','dfd_val_c40.txt'),'w') as f:
-        f.writelines(c40_val_txt)
-    with open(os.path.join(path,'faces','dfd_test_c40.txt'),'w') as f:
-        f.writelines(c40_test_txt)
-    raw_all_txt = train_txt +val_txt+ test_txt
-    c23_all_txt = c23_train_txt + c23_val_txt + c23_test_txt
-    c40_all_txt = c40_train_txt + c40_val_txt + c40_test_txt
-    with open(os.path.join(path,'faces','dfd_all_raw.txt'),'w') as f:
-        f.writelines(raw_all_txt)
-    with open(os.path.join(path,'faces','dfd_all_c23.txt'),'w') as f:
-        f.writelines(c23_all_txt)
-    with open(os.path.join(path,'faces','dfd_all_c40.txt'),'w') as f:
-        f.writelines(c40_all_txt)
+
 
 if __name__ == '__main__':
-    # dataset_path = '/share/home/zhangchao/datasets_io03_ssd/ff++'
-    # main('/share/home/zhangchao/datasets_io03_ssd/ff++', 50, 1.3, 'FF')
-    # main('/share/home/zhangchao/datasets_io03_ssd/ff++', 50, 1.3, 'DFD')
-    # regen_dfd_txt(dataset_path)
-
-    # exit()
     args = parse()
     main(args.subset, args.path, args.samples, args.scale, args.detector, args.workers)
