@@ -86,29 +86,36 @@ def f4(frames, crop_datas, save_path):
     [
         *map(
             cv2.imwrite,
-            [os.path.join(save_path, fn) for fn in frames[1]],
-            map(crop_img, frames[:,2], crop_datas),
+            [os.path.join(save_path, fn) for _,fn,_ in frames],
+            map(crop_img, [frame for _,_,frame in frames], crop_datas),
         )
     ]
     pass
 
 
 def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detector):
-    raw_rela_path = os.path.join(path,rela_path,'raw','videos',video)
-    c23_rela_path = os.path.join(path,rela_path,'c23','videos',video)
-    c40_rela_path = os.path.join(path,rela_path,'c40','videos',video)
-    gen_dirs(os.path.join(path, raw_rela_path))
-    gen_dirs(os.path.join(path, c23_rela_path))
-    gen_dirs(os.path.join(path, c40_rela_path))
-    raw_frames = video2frames(os.path.join(path, raw_rela_path), samples)  # orders, file_names, raw_frames
-    if raw_frames is None:
-        return [], [], []
+    raw_rela_path = os.path.join(rela_path,'raw','videos')
+    c23_rela_path = os.path.join(rela_path,'c23','videos')
+    c40_rela_path = os.path.join(rela_path,'c40','videos')
+    gen_dirs(os.path.join(path, faces_prefix, raw_rela_path))
+    gen_dirs(os.path.join(path, faces_prefix, c23_rela_path))
+    gen_dirs(os.path.join(path, faces_prefix, c40_rela_path))
+    raw_frames = list(video2frames(os.path.join(path, raw_rela_path, video), samples))  # orders, file_names, raw_frames
     crop_datas = [*map(partial(get_face_location, face_scale=face_scale, detector=detector), raw_frames[2])]
-    raw_frames = [raw_frame for i, raw_frame in enumerate(raw_frames) if crop_datas[i] is not None]
+    # raw_frames = [(raw_frames[0][i],raw_frames[1][i],raw_frames[2][i]) for i in range(len(raw_frames[0])) if crop_datas[i] is not None]
+    raw_frames[0] = [raw_frames[0][i] for i in range(len(raw_frames[0])) if crop_datas[i] is not None]
+    raw_frames[1] = [raw_frames[1][i] for i in range(len(raw_frames[1])) if crop_datas[i] is not None]
+    raw_frames[2] = [raw_frames[2][i] for i in range(len(raw_frames[2])) if crop_datas[i] is not None]
     c23_frames = video2frames(os.path.join(path,c23_rela_path,video), samples)
     c40_frames = video2frames(os.path.join(path,c40_rela_path,video), samples)
-    # masks_order, _, masks_frames = video2frames('masks')
-    final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]) & set(masks_frames[0]))
+
+    if label == '1':
+        masks_rela_path = os.path.join(path,rela_path,'masks','videos',video)
+        gen_dirs(os.path.join(path, masks_rela_path))
+        masks_frames = list(video2frames(os.path.join(path,masks_rela_path,video), samples))
+        final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]) & set(masks_frames[0]))
+    else:
+        final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]))
     crop_datas = [crop_data for i, crop_data in enumerate(crop_datas) if raw_frames[0][i] in final_orders]
     raw_frames = [(frame_ind, raw_frames[1][i], raw_frames[2][i]) for i, frame_ind in enumerate(raw_frames[0]) if frame_ind in final_orders]
     c23_frames = [(frame_ind, c23_frames[1][i], c23_frames[2][i]) for i, frame_ind in enumerate(c23_frames[0]) if frame_ind in final_orders]
@@ -116,15 +123,12 @@ def f3(video, label, path, rela_path, faces_prefix, samples, face_scale, detecto
     f4(raw_frames, crop_datas, os.path.join(path,faces_prefix,raw_rela_path))
     f4(c23_frames, crop_datas, os.path.join(path,faces_prefix,c23_rela_path))
     f4(c40_frames, crop_datas, os.path.join(path,faces_prefix,c40_rela_path))
-    raw_infos = [os.path.join(faces_prefix,raw_rela_path,fn)+f'\t{label}\n' for fn in raw_frames[:,1]]
-    c23_infos = [os.path.join(faces_prefix,c23_rela_path,fn)+f'\t{label}\n' for fn in c23_frames[:,1]]
-    c40_infos = [os.path.join(faces_prefix,c40_rela_path,fn)+f'\t{label}\n' for fn in c40_frames[:,1]]
+    raw_infos = [os.path.join(faces_prefix,raw_rela_path,fn)+f'\t{label}\n' for _,fn,_ in raw_frames]
+    c23_infos = [os.path.join(faces_prefix,c23_rela_path,fn)+f'\t{label}\n' for _,fn,_ in c23_frames]
+    c40_infos = [os.path.join(faces_prefix,c40_rela_path,fn)+f'\t{label}\n' for _,fn,_ in c40_frames]
     if label =='1':  # FaceShifter will ERR
-        masks_rela_path = os.path.join(path,rela_path,'masks','videos',video)
-        gen_dirs(os.path.join(path, masks_rela_path))
-        masks_frames = video2frames(os.path.join(path,masks_rela_path,video), samples)
         masks_frames = [(frame_ind, masks_frames[1][i], masks_frames[2][i]) for i, frame_ind in enumerate(masks_frames[0]) if frame_ind in final_orders]
-        masks_frames[:,2] = [*map(bina_mask,masks_frames[:,2])]
+        masks_frames[2] = [*map(bina_mask,masks_frames[2])]
         f4(masks_frames, crop_datas, os.path.join(path,faces_prefix,masks_rela_path))
         raw_infos = [info[:-1]+'\t'+os.path.join(faces_prefix,masks_rela_path,masks_frames[i][1])+'\n' for i, info in enumerate(raw_infos)]
         c23_infos = [info[:-1]+'\t'+os.path.join(faces_prefix,masks_rela_path,masks_frames[i][1])+'\n' for i, info in enumerate(c23_infos)]
