@@ -1,5 +1,6 @@
 import argparse
 from functools import partial
+import multiprocessing as mp
 from multiprocessing import Lock
 import os
 import random
@@ -8,6 +9,7 @@ import cv2
 # conda install -c https://conda.anaconda.org/conda-forge dlib
 import dlib
 # from retinaface.pre_trained_models import get_model
+from tqdm import tqdm
 
 # device = 'cuda:0'
 # device = 'cpu'
@@ -19,6 +21,30 @@ dlib_detector = dlib.get_frontal_face_detector() #获取人脸分类器
 mutex = Lock()
 
 SEED = 1021
+
+
+# no masks
+def parse_videos_mp(videos, label, path, faces_prefix, samples, face_scale, detector, num_workers, log_info, fc):
+    print(log_info)
+    infos = []
+    with mp.Pool(num_workers) as workers:
+        with tqdm(total=len(videos)) as pbar:
+            for info in workers.imap_unordered(
+                partial(
+                    fc,
+                    label=label,
+                    path=path,
+                    faces_prefix=faces_prefix,
+                    samples=samples,
+                    face_scale=face_scale,
+                    detector=detector,
+                ),
+                videos,
+            ):
+                pbar.update()
+                infos += info
+    print(log_info, len(infos))
+    return infos
 
 
 def parse_video(

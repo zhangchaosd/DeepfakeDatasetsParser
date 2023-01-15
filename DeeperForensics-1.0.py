@@ -1,40 +1,38 @@
 import os
 
-from tqdm import tqdm
+from utils import gen_dirs, parse, read_txt, parse_videos_mp, video2face_pngs
 
-from utils import gen_dirs, parse, parse_video, read_txt
-
-ms = [
-    'end_to_end',
-    'end_to_end_level_1',
-    'end_to_end_level_2',
-    'end_to_end_level_3',
-    'end_to_end_level_4',
-    'end_to_end_level_5',
-    'end_to_end_mix_2_distortions',
-    'end_to_end_mix_3_distortions',
-    'end_to_end_mix_4_distortions',
-    'end_to_end_random_level',
-    'reenact_postprocess',
-]
-modes = ['test']
-# modes = ['train', 'val', 'test']
+modes = ['train', 'val', 'test']
 
 
-def parse_source_videos(source_videos):
+def parse_videos(videos, get_key):
     d = {}
-    for video in source_videos:
-        name = video[14:18]
-        if name in d:
-            d[name].append(video)
+    for video in videos:
+        key = get_key(video)
+        if key in d:
+            d[key].append(video)
         else:
-            d[name] = [video]
+            d[key] = [video]
     return d
 
 
-def main(path, samples, face_scale):
-    faces_path = os.path.join(path, 'faces')
-    gen_dirs(faces_path)
+def parse_one_video(video, path, label, faces_prefix, samples, face_scale, detector):
+    rela_path = os.path.dirname(video)
+    save_path = os.path.join(path, faces_prefix, rela_path)
+    video_path = os.path.join(path, video)
+    gen_dirs(os.path.join(path, faces_prefix, rela_path))
+    infos = [
+        os.path.join(faces_prefix, rela_path, img_name) + f'\t{label}\n'
+        for img_name in video2face_pngs(
+            video_path, save_path, samples, face_scale, detector
+        )
+    ]
+    return infos
+
+
+def main(path, samples, face_scale, detector, num_workers):
+    faces_prefix = f'faces{samples}{detector}'
+    gen_dirs(os.path.join(path, faces_prefix))
 
     source_videos = read_txt(
         os.path.join(
@@ -46,56 +44,39 @@ def main(path, samples, face_scale):
             path, 'lists', 'source_videos_lists', 'source_videos_extra_list.txt'
         )
     )
-    source_videos = parse_source_videos(source_videos)
+    source_videos = parse_videos(source_videos, lambda s:s[14:18])
+    manipulated_videos = read_txt(
+        os.path.join(
+            path, 'lists', 'manipulated_videos_lists', 'manipulated_videos_list.txt'
+        )
+    )
+    manipulated_videos = parse_videos(manipulated_videos, lambda s:os.path.basename(s)[4:8])
+    all_infos = []
     for mode in modes:
         print(f'Parsing {mode} split...')
-        with open(os.path.join(faces_path, mode + '.txt'), 'w') as f:
-            videos = read_txt(
-                os.path.join(path, 'lists', 'splits', mode + '.txt')
-            )
-            for video in tqdm(videos):
-                # manipulated
-                for m in ms:
-                    parse_video(
-                        path,
-                        os.path.join('manipulated_videos', m),
-                        video,
-                        '1',
-                        f,
-                        samples,
-                        face_scale,
-                    )
-                name = video[4:8]
-                # original
-                if name in source_videos:
-                    for source_video in source_videos[name]:
-                        parse_video(
-                            path,
-                            os.path.dirname(source_video),
-                            os.path.basename(source_video),
-                            '0',
-                            f,
-                            samples,
-                            face_scale,
-                        )
-                    del source_videos[name]
+        split_infos = read_txt(
+           os.path.join(path, 'lists', 'splits', mode + '.txt')
+        )
+        s_videos = []
+        m_videos = []
+        for info in split_infos:
+            s_videos += source_videos[info[4:8]]
+            m_videos += manipulated_videos[info[4:8]]
+        infos = parse_videos_mp(s_videos,'0',path,faces_prefix, samples, face_scale, detector, num_workers, f'Parsing {mode} source...', parse_one_video)
+        infos += parse_videos_mp(m_videos,'1',path,faces_prefix, samples, face_scale, detector, num_workers, f'Parsing {mode} manipulated...', parse_one_video)
+        with open(os.path.join(path, faces_prefix, f'{mode}.txt')) as f:
+            f.writelines(infos)
+        all_infos += infos
+    with open(os.path.join(path, faces_prefix, 'all.txt')) as f:
+        f.writelines(infos)
 
-def merge_txt(path):
-    faces_path = os.path.join(path,'faces')
-    all_info = []
-    with open(os.path.join(faces_path,'train.txt'),'r') as f:
-        all_info = f.readlines()
-    with open(os.path.join(faces_path,'val.txt'),'r') as f:
-        all_info = all_info + f.readlines()
-    with open(os.path.join(faces_path,'test.txt'),'r') as f:
-        all_info = all_info + f.readlines()
-    print('all: ', len(all_info))
-    with open(os.path.join(faces_path,'all.txt'),'w') as f:
-        f.writelines(all_info)
 
 # 1 is fake
+# python DeeperForensics-1.0.py -path '/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0' -samples 120 -scale 1.3 -detector dlib -workers 8
 if __name__ == '__main__':
-    # args = parse()
-    # main(args.path, args.samples, args.scale)
-    # main('/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0', 10, 1.3)
-    merge_txt('/share/home/zhangchao/datasets_io03_ssd/DeeperForensics-1.0')
+    args = parse()
+    main(args.path, args.samples, args.scale, args.detector, args.workers)
+
+# 703,96,201   980_W010.mp4
+# source 48475+189 source_videos/W136/light_up/surprise/camera_down/W136_light_up_surprise_camera_down.mp4
+# fake 11000 manipulated_videos/end_to_end_mix_2_distortions/103_W018.mp4
