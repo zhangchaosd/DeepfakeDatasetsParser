@@ -166,7 +166,12 @@ def get_face_location(img, face_scale, detector):
 
 def crop_img(img, xy):
     min_y, max_y, min_x, max_x = xy
-    return img[min_y:max_y, min_x:max_x, :]
+    if len(img.shape)==3:
+        return img[min_y:max_y, min_x:max_x, :]
+    elif len(img.shape)==2:
+        return img[min_y:max_y, min_x:max_x]
+    else:
+        assert False
 
 
 def get_files_from_path(path):
