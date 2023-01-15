@@ -26,8 +26,9 @@ def parse_image(info, mode, image_folder, masks_folder, path, faces_prefix, face
     face_path = crop_save(img, crop_data, path, faces_prefix, rela_path, image_name)
     line = face_path+'\t'+bin_label + '\n'
     if bin_label == '1':
-        mask = cv2.imread(os.path.join(path,rela_path.replace('image','spatial_localize').replace(image_folder,masks_folder), image_name),cv2.IMREAD_GRAYSCALE)
-        mask_path = crop_save(mask, crop_data, path, faces_prefix, rela_path, image_name)
+        mask_rela_path = rela_path.replace('image','spatial_localize').replace(image_folder,masks_folder)
+        mask = cv2.imread(os.path.join(path, mask_rela_path, image_name),cv2.IMREAD_GRAYSCALE)
+        mask_path = crop_save(mask, crop_data, path, faces_prefix, mask_rela_path, image_name)
         line = line[:-1]+'\t'+mask_path+'\n'
     return line
 
