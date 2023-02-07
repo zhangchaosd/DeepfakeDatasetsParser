@@ -84,5 +84,4 @@ def main(path, save_path, samples, face_scale, detector, num_workers):
 # python DeepfakeTIMIT.py -path '/share/home/zhangchao/datasets_io03_ssd/DeepfakeTIMIT' -save_path '/share/home/zhangchao/local_sets/DeepfakeTIMIT' -samples 20 -scale 1.3 -detector dlib -workers 8
 if __name__ == '__main__':
     args = parse()
-    # main('/share/home/zhangchao/datasets_io03_ssd/DeepfakeTIMIT', 100, 1.3)
     main(args.path, args.save_path, args.samples, args.scale, args.detector, args.workers)
