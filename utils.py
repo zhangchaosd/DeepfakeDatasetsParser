@@ -6,6 +6,10 @@ import os
 import random
 
 import cv2
+use_cuda_decoder = False
+# use_cuda_decoder = hasattr(cv2, 'cudacodec')
+print(f'Use GPU decoder: {use_cuda_decoder}')
+
 # conda install -c https://conda.anaconda.org/conda-forge dlib
 import dlib
 # from retinaface.pre_trained_models import get_model
@@ -93,30 +97,41 @@ def video2face_pngs(video_path, save_path, samples, face_scale, detector):
     return file_names
 
 
-def video2frames(video_path, samples, order = None):
+def video2frames(video_path, samples):
     if not os.path.exists(video_path):
         print(f'Video file not exists! {video_path}')
         return [],[],[]
     frames = []
-    cap = cv2.VideoCapture(video_path)
-    num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    if num_frames == 0:
-        print(f'Video has not frame! {video_path}')
-        return [],[],[]
-    samples = min(samples, num_frames)
-    stride = num_frames // samples + 1
-    if order == None:
+    if use_cuda_decoder:
+        cap=cv2.cudacodec.createVideoReader(video_path)
+        ret, frame = cap.nextFrame()
+        while ret:
+            frames.append(frame)
+            ret, frame = cap.nextFrame()
+        num_frames = len(frames)
+        samples = min(samples, num_frames)
+        stride = num_frames // samples + 1
         order = [i for i in range(num_frames) if i % stride == 0][:samples]
-    new_order = []
-    for num in order:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, num)
-        flag, frame = cap.read()  # bgr
-        if not flag:
-            continue
-        new_order.append(num)
-        frames.append(frame)
-    order = new_order
-    cap.release()
+        frames = [frame.download()[:,:,:3] for i, frame in enumerate(frames) if i in order]
+    else:
+        cap = cv2.VideoCapture(video_path)
+        num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if num_frames == 0:
+            print(f'Video has not frame! {video_path}')
+            return [],[],[]
+        samples = min(samples, num_frames)
+        stride = num_frames // samples + 1
+        order = [i for i in range(num_frames) if i % stride == 0][:samples]
+        new_order = []
+        for num in order:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, num)
+            flag, frame = cap.read()  # bgr
+            if not flag:
+                continue
+            new_order.append(num)
+            frames.append(frame)
+        order = new_order
+        cap.release()
     video_name = os.path.basename(video_path)
     file_names = [video_name[:-4] + f'_{i}.png' for i, _ in enumerate(order)]
     assert len(file_names) == len(frames)
@@ -148,6 +163,7 @@ def get_face_location(img, face_scale, detector):
         if len(annotation[0]['bbox']) == 0:
             return None
         x1, y1, x2, y2 = annotation[0]['bbox']
+        # x1, y1, x2, y2 = 0,0,20,20
     x1, y1, x2, y2 = list(
         map(
             int,
@@ -203,6 +219,7 @@ def static_shuffle(l):
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('-path', required=True, help='The path of be dataset.')
+    parser.add_argument('-save_path', default='', help='The path of be faces to be saved.')
     parser.add_argument(
         '-samples',
         default=8,
@@ -234,4 +251,6 @@ def parse():
         help='Number of processes.',
     )
     args = parser.parse_args()
+    if args.save_path == '':
+        args.save_path = args.path
     return args

@@ -29,7 +29,7 @@ def get_splits(videos):
     )  # 30*2, 9*2, 10*2
 
 
-def f1(video_path, path, faces_path, samples, face_scale, detector):
+def parse_video(video_path, path, faces_path, samples, face_scale, detector):
     if video_path[-9] == '_':
         k = 'fake'
         label = '1'
@@ -47,7 +47,7 @@ def f1(video_path, path, faces_path, samples, face_scale, detector):
     return infos
 
 
-def f2(
+def parse_split(
     path, faces_path, split, mode, samples, face_scale, detector, num_workers
 ):
     txt_path = os.path.join(faces_path, mode + '.txt')
@@ -56,7 +56,7 @@ def f2(
         with tqdm(total=len(split)) as pbar:
             for info in workers.imap_unordered(
                 partial(
-                    f1,
+                    parse_video,
                     path=path,
                     faces_path=faces_path,
                     samples=samples,
@@ -71,9 +71,10 @@ def f2(
     return infos
 
 
-def main(path, samples, face_scale, detector, num_workers):
-    faces_path = os.path.join(path, 'faces' + str(samples) + detector)
-    gen_dirs(faces_path)
+def main(path, save_path, samples, face_scale, detector, num_workers):
+    faces_prefix = 'faces' + str(samples) + detector
+    faces_path = os.path.join(save_path, faces_prefix)
+    gen_dirs(os.path.join(save_path, faces_prefix))
     fake_rela_path = 'fake'
     real_rela_path = 'real'
     fake_videos = get_files_from_path(os.path.join(path, fake_rela_path))
@@ -85,7 +86,7 @@ def main(path, samples, face_scale, detector, num_workers):
     ]
     train_split, val_split, test_split = get_splits(real_videos)
 
-    train_info = f2(
+    train_info = parse_split(
         path,
         faces_path,
         train_split,
@@ -95,7 +96,7 @@ def main(path, samples, face_scale, detector, num_workers):
         detector,
         num_workers,
     )
-    val_info = f2(
+    val_info = parse_split(
         path,
         faces_path,
         val_split,
@@ -105,7 +106,7 @@ def main(path, samples, face_scale, detector, num_workers):
         detector,
         num_workers,
     )
-    test_info = f2(
+    test_info = parse_split(
         path,
         faces_path,
         test_split,
@@ -127,7 +128,7 @@ def main(path, samples, face_scale, detector, num_workers):
 
 
 # 0 is real
-# python UADFV.py -path '/share/home/zhangchao/datasets_io03_ssd/UADFV' -samples 100 -scale 1.3 -detector dlib -workers 8
+# python UADFV.py -path '/share/home/zhangchao/datasets_io03_ssd/UADFV' -samples 50 -scale 1.3 -detector dlib -workers 8
 if __name__ == '__main__':
     args = parse()
-    main(args.path, args.samples, args.scale, args.detector, args.workers)
+    main(args.path, args.save_path, args.samples, args.scale, args.detector, args.workers)
