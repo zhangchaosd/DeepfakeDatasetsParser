@@ -5,17 +5,28 @@ Can generate label text file.
 
 ## Installation
 
+For dlib:
+
 ```
-pip install tqdm opencv-python retinaface-pytorch
+conda create --name dlib python=3.10
+conda install -c https://conda.anaconda.org/conda-forge dlib
+pip install opencv-python tqdm
+```
+For Retinaface:
+```
+pip install opencv-python retinaface-pytorch tqdm
 ```
 
 ## Usage
 
 ```
-python CelebDF.py -path xxx/xxx/Celeb-DF-v2 -samples 8 -scale 1.3
+python CelebDF.py -path 'xxx/Celeb-DF' -save_path 'xxx/Celeb-DF' -samples 20 -scale 1.3 -detector dlib -workers 8
 ...
 ```
 ### params:
+
+TODO
+
 samples: Crop faces from each video.
 
 sacle: The scale factor of bbox of face
