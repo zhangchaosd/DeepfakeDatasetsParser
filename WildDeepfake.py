@@ -42,7 +42,7 @@ squens: 410
 faces: 107003
 '''
 
-def f1(path, mode, label):
+def parse_part(path, mode, label):
     bin_label = '0' if label == 'real' else '1'
     videos=[os.path.join(f'{label}_{mode}',f,label) for f in os.listdir(os.path.join(path,f'{label}_{mode}')) if os.path.isdir(os.path.join(os.path.join(path,f'{label}_{mode}',f)))]
     print(f'{mode} {label} videos: {len(videos)}')
@@ -53,8 +53,8 @@ def f1(path, mode, label):
     return infos
 
 def parse_split(path, mode):
-    infos = f1(path,mode,'real')
-    infos += f1(path,mode,'fake')
+    infos = parse_part(path,mode,'real')
+    infos += parse_part(path,mode,'fake')
     with open(os.path.join(path,f'{mode}.txt'),'w') as f:
         f.writelines(infos)
     return infos
