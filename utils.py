@@ -6,8 +6,8 @@ import os
 import random
 
 import cv2
-use_cuda_decoder = False
-# use_cuda_decoder = hasattr(cv2, 'cudacodec')
+# use_cuda_decoder = False
+use_cuda_decoder = hasattr(cv2, 'cudacodec')
 print(f'Use GPU decoder: {use_cuda_decoder}')
 
 # conda install -c https://conda.anaconda.org/conda-forge dlib
@@ -28,7 +28,7 @@ SEED = 1021
 
 
 # no masks
-def parse_videos_mp(videos, label, path, faces_prefix, samples, face_scale, detector, num_workers, log_info, fc):
+def parse_videos_mp(videos, label, path, save_path, faces_prefix, samples, face_scale, detector, num_workers, log_info, fc):
     print(log_info)
     infos = []
     with mp.Pool(num_workers) as workers:
@@ -38,6 +38,7 @@ def parse_videos_mp(videos, label, path, faces_prefix, samples, face_scale, dete
                     fc,
                     label=label,
                     path=path,
+                    save_path=save_path,
                     faces_prefix=faces_prefix,
                     samples=samples,
                     face_scale=face_scale,
@@ -196,10 +197,8 @@ def get_files_from_path(path):
 
 def read_txt(path):
     assert path.endswith('.txt')
-    lines = []
     with open(path) as f:
-        for line in f.readlines():
-            lines.append(line.strip())
+        lines = [line.strip() for line in f.readlines()]
     return lines
 
 
@@ -249,6 +248,12 @@ def parse():
         default=1,
         type=int,
         help='Number of processes.',
+    )
+    parser.add_argument(
+        '-part',
+        default=0,
+        type=int,
+        help='Number of part',
     )
     args = parser.parse_args()
     if args.save_path == '':

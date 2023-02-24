@@ -112,8 +112,8 @@ def parse_video(video, label, path, save_path, rela_path, faces_prefix, samples,
     c40_frames = video2frames(os.path.join(path,c40_rela_path,video), samples)
 
     if label == '1':
-        masks_rela_path = os.path.join(path,rela_path,'masks','videos')
-        gen_dirs(os.path.join(save_path, masks_rela_path))
+        masks_rela_path = os.path.join(rela_path,'masks','videos')
+        gen_dirs(os.path.join(save_path, faces_prefix, masks_rela_path))
         masks_frames = list(video2frames(os.path.join(path,masks_rela_path,video), samples))
         final_orders = list(set(raw_frames[0]) & set(c23_frames[0]) & set(c40_frames[0]) & set(masks_frames[0]))
     else:
