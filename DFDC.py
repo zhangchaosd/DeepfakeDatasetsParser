@@ -1,11 +1,12 @@
-import sys
 import csv
 import json
+from functools import partial
 import os
+import multiprocessing as mp
 
 from tqdm import tqdm
 
-from utils import gen_dirs, parse, parse_video
+from utils import gen_dirs, parse, video2face_pngs
 
 '''
 #!/usr/bin/env bash
@@ -18,15 +19,7 @@ done
 !!!!!!! important !!!!!!!
 jar xvf dfdc_train_part_23.zip
 '''
-'''
-python DFDC.py 0
-python DFDC.py 1
-python DFDC.py 2
-python DFDC.py 3
-python DFDC.py 4
-python DFDC.py 5
-python DFDC.py 6
-'''
+
 
 lb = {
     'FAKE': '1',
@@ -34,112 +27,89 @@ lb = {
 }
 
 
-def main(path, samples, face_scale):
-    faces_path = os.path.join(path, 'faces')
-    gen_dirs(faces_path)
-    idx=int(sys.argv[1])
-    if idx<5:
-        print('parsing train data...')
-        with open(os.path.join(faces_path, str(idx)+'train.txt'), 'w') as f:
-            for i in range(idx*10+3, idx*10+4):
-                print(f'dfdc_train_part_{i}')
-                rela_path = os.path.join('train', f'dfdc_train_part_{i}')
-                with open(os.path.join(path, rela_path, 'metadata.json')) as f_json:
-                    metadata = json.load(f_json)
-                videos = []
-                for video in metadata.keys():
-                    videos.append(video)
-                for video in tqdm(videos):
-                    parse_video(
-                        path,
-                        rela_path,
-                        video,
-                        lb[metadata[video]['label']],
-                        f,
-                        samples,
-                        face_scale,
-                    )
-                print(f'part_{i} done')
-        print('parsing train data done')
-    if idx == 5:
-        print('parsing val data...')
-        with open(os.path.join(faces_path, 'val.txt'), 'w') as f, open(
-            os.path.join(path, 'validation', 'labels.csv'), 'r'
-        ) as f_csv:
+def parse_video(video, path, save_path, faces_prefix, samples, face_scale, detector):
+    video_path, label = video
+    infos = [
+        os.path.join(os.path.dirname(video_path), img_name) + '\t' + str(label) + '\n'
+        for img_name in video2face_pngs(
+            os.path.join(path, video_path), os.path.join(save_path,faces_prefix,os.path.dirname(video_path)), samples, face_scale, detector
+        )
+    ]
+    return infos
+
+
+def get_videos(path, rela_path):
+    videos = []
+    if rela_path.startswith('val'):
+        with open(os.path.join(path, rela_path, 'labels.csv'), 'r') as f_csv:
             csv_reader = csv.reader(f_csv)
             csv_reader.__next__()
             for video, label in tqdm(csv_reader):
-                parse_video(
-                    path, 'validation', video, label, f, samples, face_scale
-                )
-            print('parsing val data done')
-    if idx ==6:
-        print('parsing test data...')
-        with open(os.path.join(faces_path, 'test.txt'), 'w') as f, open(
-            os.path.join(path, 'test', 'metadata.json')
-        ) as f_json:
+                videos.append((os.path.join(rela_path,video),label))
+    else:
+        with open(os.path.join(path, rela_path, 'metadata.json')) as f_json:
             metadata = json.load(f_json)
-            for video in tqdm(metadata.keys()):
-                parse_video(
-                    path,
-                    'test',
-                    video,
-                    metadata[video]['is_fake'],
-                    f,
-                    samples,
-                    face_scale,
-                )
-        print('parsing test data done')
+            for video in metadata.keys():
+                if rela_path.startswith('tr'):
+                    videos.append((os.path.join(rela_path,video),lb[metadata[video]['label']]))
+                else:
+                    videos.append((os.path.join(rela_path,video),metadata[video]['is_fake']))
+    return videos
 
+def main(path, save_path, samples, face_scale, detector, num_workers, part=0):
+    assert part>=0 and part<5
+    faces_prefix = f'faces{samples}{detector}'
+    gen_dirs(os.path.join(save_path, faces_prefix))
 
-def gen_txt(path):
-    faces_path = os.path.join(path,'faces')
-    train_txt = []
-    for i in range(0,50):
-        with open(os.path.join(path, 'train', 'dfdc_train_part_'+str(i), 'metadata.json')) as f_json:
-            metadata = json.load(f_json)
-        for file in os.listdir(os.path.join(faces_path, 'train', 'dfdc_train_part_'+str(i))):
-            train_txt.append(os.path.join('faces','train','dfdc_train_part_'+str(i),file)+'\t'+lb[metadata[file[:-6]+'.mp4']['label']]+'\n')
+    modes = ['test']
+    # modes = ['train', 'validation', 'test']
+    all_infos = []
+    for mode in modes:
+        print(f'Parsing {mode}...')
+        videos = []
+        if mode == 'train':
+            for i in range(part*10,part*10+10):
+                videos += get_videos(path, os.path.join(mode, f'dfdc_train_part_{i}'))
+        else:
+            videos = get_videos(path, mode)
+        infos = []
+        with mp.Pool(num_workers) as workers:
+            with tqdm(total=len(videos)) as pbar:
+                for info in workers.imap_unordered(
+                    partial(
+                        parse_video,
+                        path=path,
+                        save_path=save_path,
+                        faces_prefix=faces_prefix,
+                        samples=samples,
+                        face_scale=face_scale,
+                        detector=detector,
+                    ),
+                    videos,
+                ):
+                    pbar.update()
+                    infos += info
+        print(f'Parsing {mode} {len(infos)}')
+        with open(os.path.join(save_path, faces_prefix, f'{mode}_{part}.txt'), 'w') as f:
+            f.writelines(infos)
+        all_infos += infos
+    # with open(os.path.join(save_path, faces_prefix, 'all_{part}.txt'), 'w') as f:
+        # f.writelines(all_infos)
+    print('All done ', len(all_infos))
 
-    val_txt = []
-    val_dict = {}
-    with open(os.path.join(faces_path, 'val.txt'), 'w') as f, open(
-            os.path.join(path, 'validation', 'labels.csv'), 'r'
-        ) as f_csv:
-            csv_reader = csv.reader(f_csv)
-            csv_reader.__next__()
-            for video, label in tqdm(csv_reader):
-                val_dict[video]=label
-    for file in os.listdir(os.path.join(faces_path, 'validation')):
-        val_txt.append(os.path.join('faces','validation',file)+'\t'+val_dict[file[:-6]+'.mp4']+'\n')
-
-    test_txt = []
-    with open(os.path.join(faces_path, 'test.txt'), 'w') as f, open(
-            os.path.join(path, 'test', 'metadata.json')
-        ) as f_json:
-        metadata = json.load(f_json)
-    for file in os.listdir(os.path.join(faces_path, 'test')):
-        test_txt.append(os.path.join('faces','test',file)+'\t'+str(metadata[file[:-6]+'.mp4']['is_fake'])+'\n')
-    print('train:', len(train_txt),train_txt[1000])
-    print('val:', len(val_txt),val_txt[1000])
-    print('test:', len(test_txt),test_txt[1000])
-    with open(os.path.join(faces_path,'train.txt'),'w') as f:
-        f.writelines(train_txt)
-    with open(os.path.join(faces_path,'val.txt'),'w') as f:
-        f.writelines(val_txt)
-    with open(os.path.join(faces_path,'test.txt'),'w') as f:
-        f.writelines(test_txt)
-    all_txt = train_txt+val_txt+test_txt
-    with open(os.path.join(faces_path,'all.txt'),'w') as f:
-        f.writelines(all_txt)
-
-
-
+def merge_txts(save_path,samples,detector):
+    faces_prefix = f'faces{samples}{detector}'
+    with open(os.path.join(save_path, faces_prefix, 'train.txt'), 'w') as f:
+        for i in range(0,50):
+            f.writelines(open(os.path.join(save_path, f'train_{i}.txt')))
+    with open(os.path.join(save_path, faces_prefix, 'all.txt'), 'w') as f:
+        f.writelines(open(os.path.join(save_path, f'train.txt')))
+        f.writelines(open(os.path.join(save_path, f'validation.txt')))
+        f.writelines(open(os.path.join(save_path, f'test.txt')))
 
 #  1 is fake
+# python DFDC.py -path '/share/home/zhangchao/datasets_io03_ssd/DFDC' -save_path '/share/home/zhangchao/local_sets/DFDC' -samples 20 -scale 1.3 -detector dlib -workers 24
 if __name__ == '__main__':
-    path = '/share/home/zhangchao/datasets_io03_ssd/DFDC'
-    # args = parse()
-    # main(args.path, args.samples, args.scale)
-    # main('/share/home/zhangchao/datasets_io03_ssd/DFDC',10,1.3)
-    gen_txt(path)
+    args = parse()
+    main(args.path, args.save_path, args.samples, args.scale, args.detector, args.workers, args.part)
+    merge_txts(args.save_path, args.samples, args.detector)
