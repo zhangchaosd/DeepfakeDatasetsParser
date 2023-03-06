@@ -255,6 +255,18 @@ def parse():
         type=int,
         help='Number of part',
     )
+    parser.add_argument(
+        '-mode',
+        default='train',
+        type=str,
+        help='For DFDC. train or test or validation',
+    )
+    parser.add_argument(
+        '-path_auth',
+        default='VidTIMIT_path',
+        type=str,
+        help='For DeepfakeTIMIT. The path of VidTIMIT.',
+    )
     args = parser.parse_args()
     if args.save_path == '':
         args.save_path = args.path

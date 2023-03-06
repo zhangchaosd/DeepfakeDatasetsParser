@@ -1,5 +1,6 @@
 
 '''
+Diverse Fake Face Dataset
 real: FFHQ, CelebA, source of FF++
 Identity and expression swap: FF++:I:FaceSwap, Deepfakes;E:Face2Face   and by DFL
 Atrributes manipulation:FaceAPP, StarGAN. 4000 FFHQ and 2000 CelebA as source. for in FFHQ, generate 3 each face, two with a random filter one with multiple filters
@@ -15,7 +16,14 @@ randomly select a subset of
 240,336 fake
 
 
-ffhq 10 000 999 9000
+       celebA  ffhq  ff++
+train 
+val
+test
+
+
+
+ffhq 10 000 999(少了10279) 9000
 faceapp 6309+999+4501 with masks
 pgganv1 9975+998+8970
 pgganv2 9982+1000+8980
