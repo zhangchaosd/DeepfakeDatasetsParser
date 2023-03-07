@@ -56,13 +56,14 @@ def get_videos(path, rela_path):
                     videos.append((os.path.join(rela_path,video),metadata[video]['is_fake']))
     return videos
 
-def main(path, save_path, samples, face_scale, detector, num_workers, part=0):
+def main(path, save_path, samples, face_scale, detector, num_workers, mode, part=0):
     assert part>=0 and part<5
     faces_prefix = f'faces{samples}{detector}'
     gen_dirs(os.path.join(save_path, faces_prefix))
 
-    modes = ['test']
+    # modes = ['test']
     # modes = ['train', 'validation', 'test']
+    modes=[mode]
     all_infos = []
     for mode in modes:
         print(f'Parsing {mode}...')
@@ -100,16 +101,20 @@ def main(path, save_path, samples, face_scale, detector, num_workers, part=0):
 def merge_txts(save_path,samples,detector):
     faces_prefix = f'faces{samples}{detector}'
     with open(os.path.join(save_path, faces_prefix, 'train.txt'), 'w') as f:
-        for i in range(0,50):
-            f.writelines(open(os.path.join(save_path, f'train_{i}.txt')))
+        for i in range(0,5):
+            f.writelines(open(os.path.join(save_path, faces_prefix, f'train_{i}.txt')))
+    with open(os.path.join(save_path, faces_prefix, 'test.txt'), 'w') as f:
+        f.writelines(open(os.path.join(save_path, faces_prefix, 'test_0.txt')))
+    with open(os.path.join(save_path, faces_prefix, 'validation.txt'), 'w') as f:
+        f.writelines(open(os.path.join(save_path, faces_prefix, 'validation_0.txt')))
     with open(os.path.join(save_path, faces_prefix, 'all.txt'), 'w') as f:
-        f.writelines(open(os.path.join(save_path, f'train.txt')))
-        f.writelines(open(os.path.join(save_path, f'validation.txt')))
-        f.writelines(open(os.path.join(save_path, f'test.txt')))
+        f.writelines(open(os.path.join(save_path, faces_prefix, 'train.txt')))
+        f.writelines(open(os.path.join(save_path, faces_prefix, 'validation.txt')))
+        f.writelines(open(os.path.join(save_path, faces_prefix, 'test.txt')))
 
 #  1 is fake
-# python DFDC.py -path '/share/home/zhangchao/datasets_io03_ssd/DFDC' -save_path '/share/home/zhangchao/local_sets/DFDC' -samples 20 -scale 1.3 -detector dlib -workers 24
+# python DFDC.py -path '/share/home/zhangchao/datasets_io03_ssd/DFDC' -save_path '/share/home/zhangchao/datasets_io03_ssd/DFDC' -samples 20 -scale 1.3 -detector dlib -workers 24 -mode train -part 0
 if __name__ == '__main__':
     args = parse()
-    main(args.path, args.save_path, args.samples, args.scale, args.detector, args.workers, args.part)
+    # main(args.path, args.save_path, args.samples, args.scale, args.detector, args.workers, args.mode, args.part)
     merge_txts(args.save_path, args.samples, args.detector)
