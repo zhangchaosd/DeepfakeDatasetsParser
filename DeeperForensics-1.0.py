@@ -48,6 +48,7 @@ def main(path, save_path, samples, face_scale, detector, num_workers):
         all_infos += infos
     with open(os.path.join(save_path, faces_prefix, f'all.txt'), "w") as f:
         f.writelines(all_infos)
+    print("All Done")
 
 
 # 1 is fake
