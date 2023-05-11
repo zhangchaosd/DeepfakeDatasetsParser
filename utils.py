@@ -1,11 +1,13 @@
 import argparse
-from functools import partial
 import multiprocessing as mp
-from multiprocessing import Lock
 import os
 import random
+from functools import partial
+from multiprocessing import Lock
 
 import cv2
+import numpy as np
+
 # use_cuda_decoder = False
 use_cuda_decoder = hasattr(cv2, 'cudacodec')
 print(f'Use GPU decoder: {use_cuda_decoder}')
@@ -109,29 +111,26 @@ def video2frames(video_path, samples):
         while ret:
             frames.append(frame)
             ret, frame = cap.nextFrame()
-        num_frames = len(frames)
-        samples = min(samples, num_frames)
-        stride = num_frames // samples + 1
-        order = [i for i in range(num_frames) if i % stride == 0][:samples]
+        frame_count = len(frames)
+        samples = min(samples, frame_count)
+        stride = frame_count // samples + 1
+        order = [i for i in range(frame_count) if i % stride == 0][:samples]
         frames = [frame.download()[:,:,:3] for i, frame in enumerate(frames) if i in order]
     else:
         cap = cv2.VideoCapture(video_path)
-        num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if num_frames == 0:
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if frame_count == 0:
             print(f'Video has not frame! {video_path}')
             return [],[],[]
-        samples = min(samples, num_frames)
-        stride = num_frames // samples + 1
-        order = [i for i in range(num_frames) if i % stride == 0][:samples]
-        new_order = []
-        for num in order:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, num)
+        frame_idxs = np.linspace(0, frame_count - 1, samples, dtype=np.int32)
+        new_frame_idxs = []
+        for num in range(frame_count):
             flag, frame = cap.read()  # bgr
-            if not flag:
+            if (not flag) or (num not in frame_idxs):
                 continue
-            new_order.append(num)
+            new_frame_idxs.append(num)
             frames.append(frame)
-        order = new_order
+        order = new_frame_idxs
         cap.release()
     video_name = os.path.basename(video_path)
     file_names = [video_name[:-4] + f'_{i}.png' for i, _ in enumerate(order)]
