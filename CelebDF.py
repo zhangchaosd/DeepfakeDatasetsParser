@@ -1,99 +1,98 @@
-import multiprocessing as mp
+import concurrent.futures
+import json
 import os
-from functools import partial
+import sys
+from glob import glob
 
 from tqdm import tqdm
 
-from utils import get_files_from_path, parse, gen_dirs, video2face_pngs
+from utils2 import parse_video
 
 
-def parse_video(line, path, save_path, faces_prefix, samples, face_scale, detector):
-    label, video_path = line.split(' ')
-    rela_path = os.path.dirname(video_path)
-    save_path = os.path.join(save_path, faces_prefix, rela_path)
-    video_path = os.path.join(path, video_path)
-    infos = [
-        os.path.join(rela_path, img_name) + f'\t{label}\n'
-        for img_name in video2face_pngs(
-            video_path, save_path, samples, face_scale, detector
-        )
-    ]
-    return infos
-
-def parse_split(mode, lines, path, save_path, faces_prefix, samples, face_scale, detector, num_workers):
-    print(f'Parsing {mode}...')
-    txt_path = os.path.join(save_path, faces_prefix, mode + '.txt')
-    infos = []
-    with mp.Pool(num_workers) as workers, open(txt_path, 'w') as f:
-        with tqdm(total=len(lines)) as pbar:
-            for info in workers.imap_unordered(
-                partial(
-                    parse_video,
-                    path=path,
-                    save_path=save_path,
-                    faces_prefix=faces_prefix,
-                    samples=samples,
-                    face_scale=face_scale,
-                    detector=detector,
-                ),
-                lines,
-            ):
-                pbar.update()
-                infos += info
-        f.writelines(infos)
-    print(mode, len(infos))
-    return infos
-
-def main(path, save_path, samples, face_scale, detector, num_workers):
-    faces_prefix = 'faces' + str(samples) + detector
-    gen_dirs(os.path.join(save_path, faces_prefix))
-
-    test_txt = os.path.join(path, 'List_of_testing_videos.txt')
-    with open(test_txt, 'r') as f:
-        test_lines = f.read().splitlines()
-    test_videos = []
-
-    for l in test_lines:
-        _, video = l.split(' ')
-        test_videos.append(video)
-    assert len(test_videos) == 100 or len(test_videos) == 518
-
-    real_videos = [
-        os.path.join('Celeb-real', video)
-        for video in get_files_from_path(os.path.join(path, 'Celeb-real'))
-    ]
-    real_videos += [
-        os.path.join('YouTube-real', video)
-        for video in get_files_from_path(os.path.join(path, 'YouTube-real'))
-    ]
-    synthesis_videos = [
-        os.path.join('Celeb-synthesis', video)
-        for video in get_files_from_path(os.path.join(path, 'Celeb-synthesis'))
-    ]
-
-    real_videos = [
-        *filter(lambda v: v not in test_videos, real_videos)
-    ]
-    synthesis_videos = [
-        *filter(lambda v: v not in test_videos, synthesis_videos)
-    ]
-
-    train_lines = [('0 ' + v) for v in real_videos] + [
-        ('1 ' + v) for v in synthesis_videos
-    ]
-    assert len(train_lines) == 1103 or len(train_lines) == 6011
-
-    all_info = parse_split('train', train_lines, path, save_path, faces_prefix, samples, face_scale, detector, num_workers)
-    all_info += parse_split('test', test_lines, path, save_path, faces_prefix, samples, face_scale, detector, num_workers)
-    with open(os.path.join(save_path, faces_prefix, 'all.txt'), 'w') as f:
-        f.writelines(all_info)
-    print('All ', len(all_info))
+def worker(args):
+    dataset_path, video_path, num_frames_to_extract, label = args
+    return parse_video(dataset_path, video_path, num_frames_to_extract, label)
 
 
+def parse_split(dataset_path, video_infos, num_frames_to_extract, split):
+    print(f"Now start parsing {split}: {len(video_infos)}")
+    split_infos = []
+    split_landmarks = {}
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        for infos, landmarks in tqdm(
+            executor.map(
+                worker,
+                [
+                    (dataset_path, video_path, num_frames_to_extract, label)
+                    for video_path, label in video_infos
+                ],
+            ),
+            total=len(video_infos),
+        ):
+            split_infos.extend(infos)
+            split_landmarks.update(landmarks)
+    split_info_txt = os.path.join(
+        dataset_path, f"faces_{num_frames_to_extract}", f"{split}.txt"
+    )
+    with open(split_info_txt, "w") as f:
+        f.writelines(split_infos)
+    print(f"{split}: ", len(split_infos))
+    landmarks_path = split_info_txt[:-3] + "json"
+    with open(landmarks_path, "w") as f:
+        json.dump(split_landmarks, f)
+    return split_infos, split_landmarks
 
-# real is 0
-# python CelebDF.py -path '/share/home/zhangchao/datasets_io03_ssd/Celeb-DF' -save_path '/share/home/zhangchao/local_sets/Celeb-DF' -samples 20 -scale 1.3 -detector dlib -workers 8
-# python CelebDF.py -path '/share/home/zhangchao/datasets_io03_ssd/Celeb-DF-v2' -save_path '/share/home/zhangchao/local_sets/Celeb-DF-v2' -samples 20 -scale 1.3 -detector dlib -workers 8
-if __name__ == '__main__':
-    args = parse()
-    main(args.path, args.save_path, args.samples, args.scale, args.detector, args.workers)
+
+def main(dataset_path, num_frames_to_extract):
+    video_infos = (
+        [
+            (os.path.relpath(video_path, dataset_path), 0)
+            for video_path in glob(os.path.join(dataset_path, "Celeb-real/*.mp4"))
+        ]
+        + [
+            (os.path.relpath(video_path, dataset_path), 0)
+            for video_path in glob(os.path.join(dataset_path, "YouTube-real/*.mp4"))
+        ]
+        + [
+            (os.path.relpath(video_path, dataset_path), 1)
+            for video_path in glob(os.path.join(dataset_path, "Celeb-synthesis/*.mp4"))
+        ]
+    )
+
+    test_txt_path = os.path.join(dataset_path, "List_of_testing_videos.txt")
+    with open(test_txt_path, "r") as f:
+        test_videos = [video.split()[1] for video in f.read().splitlines()]
+    train_split = [info for info in video_infos if info[0] not in test_videos]
+    test_split = [info for info in video_infos if info[0] in test_videos]
+
+    all_infos = []
+    all_landmarks = {}
+    train_infos, landmarks = parse_split(
+        dataset_path, train_split, num_frames_to_extract, "train"
+    )
+    all_infos.extend(train_infos)
+    all_landmarks.update(landmarks)
+    test_infos, landmarks = parse_split(
+        dataset_path, test_split, num_frames_to_extract, "test"
+    )
+    all_infos.extend(test_infos)
+    all_landmarks.update(landmarks)
+
+    all_txt_path = os.path.join(
+        dataset_path, f"faces_{num_frames_to_extract}", "all.txt"
+    )
+    with open(all_txt_path, "w") as f:
+        f.writelines(all_infos)
+    print("Total: ", len(all_infos))
+    landmarks_path = all_txt_path[:-3] + "json"
+    with open(landmarks_path, "w") as f:
+        json.dump(all_landmarks, f)
+
+
+# 0 is real
+# python CelebDF2.py '/share/home/zhangchao/datasets_io03_ssd/Celeb-DF-v2' 0
+# python CelebDF2.py '/share/home/zhangchao/datasets_io03_ssd/Celeb-DF-v2' 0
+if __name__ == "__main__":
+    dataset_path = sys.argv[1]
+    num_frames_to_extract = int(sys.argv[2])
+    main(dataset_path, num_frames_to_extract)
