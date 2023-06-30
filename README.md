@@ -5,7 +5,7 @@ Can generate label text file and landmarks file.
 
 ## Results
 
-The code will create a new folder starting with faces in the root directory of the dataset: some folders, txt files and json files.
+The code will create a new folder starting with "faces_" in the root directory of the dataset: some folders, txt files and json files.
 
 
 info txt format:
